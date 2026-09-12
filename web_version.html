@@ -165,8 +165,7 @@
         }
 
         textarea {
-            min-height: 92px;
-            resize: vertical;
+            min-height: 36px;
         }
 
         .binary-box {
@@ -324,7 +323,6 @@
             justify-content: space-between;
             border-bottom: 1px solid rgba(81, 54, 30, 0.18);
             padding: 12px 14px;
-            background: rgba(255, 250, 240, 0.96);
         }
 
         .preview-bar h2 {
@@ -340,11 +338,7 @@
             min-height: 420px;
             overflow: auto;
             padding: 18px;
-            background:
-                linear-gradient(45deg, rgba(72, 53, 32, 0.08) 25%, transparent 25%),
-                linear-gradient(-45deg, rgba(72, 53, 32, 0.08) 25%, transparent 25%),
-                #cbb590;
-            background-size: 30px 30px;
+            background: transparent;
         }
 
         canvas {
@@ -434,11 +428,32 @@
                         </div>
                     </div>
 
-                    <div class="field">
+                    <div class="field" id="binaryControls">
                         <label for="binary">Binary String</label>
                         <textarea id="binary" class="binary-box" spellcheck="false">000001001110011000000001001010000001001100011000001011001100</textarea>
                     </div>
 
+
+                    <div class="grid-2">
+                        <div class="field">
+                                <label for="cols">Columns</label>
+                                <input type="number" id="cols" value="13" min="3" max="30">
+                            </div>
+                            <div class="field">
+                                <label for="seed">Random Seed</label>
+                                <input type="text" id="seed" value="friedman">
+                            </div>
+                    </div>
+
+                    <div class="actions">
+                        <button class="primary" id="generateBtn" type="button">Generate Group Photo</button>
+                        <button class="secondary" id="copyBitsBtn" type="button">Copy Bits</button>
+                    </div>
+                    <div class="error" id="errorBox"></div>
+                </section>
+
+                <section class="panel">
+                    <h2>Layout</h2>
                     <div class="meta" aria-live="polite">
                         <div class="stat">
                             <span>Bits</span>
@@ -453,25 +468,8 @@
                             <strong id="canvasSize">0 x 0</strong>
                         </div>
                     </div>
-
-                    <div class="actions">
-                        <button class="primary" id="generateBtn" type="button">Generate Group Photo</button>
-                        <button class="secondary" id="copyBitsBtn" type="button">Copy Bits</button>
-                    </div>
-                    <div class="error" id="errorBox"></div>
-                </section>
-
-                <section class="panel">
-                    <h2>Layout</h2>
                     <div class="grid-2">
-                        <div class="field">
-                            <label for="cols">Columns</label>
-                            <input type="number" id="cols" value="13" min="3" max="30">
-                        </div>
-                        <div class="field">
-                            <label for="seed">Random Seed</label>
-                            <input type="text" id="seed" value="friedman">
-                        </div>
+
                         <div class="field">
                             <label for="width">Figure Width</label>
                             <input type="number" id="width" value="500" min="80" max="900">
@@ -505,17 +503,6 @@
                     </div>
                 </section>
 
-                <section class="panel">
-                    <h2>Included Figures</h2>
-                    <div class="asset-strip" aria-label="Included image set">
-                        <img src="images/front_1.png" alt="Front facing figure 1">
-                        <img src="images/front_2.png" alt="Front facing figure 2">
-                        <img src="images/front_3.png" alt="Front facing figure 3">
-                        <img src="images/side_1.png" alt="Side facing figure 1">
-                        <img src="images/side_2.png" alt="Side facing figure 2">
-                        <img src="images/side_3.png" alt="Side facing figure 3">
-                    </div>
-                </section>
             </div>
 
             <section class="preview">
@@ -559,6 +546,7 @@
             modeMessage: document.getElementById("modeMessage"),
             modeBinary: document.getElementById("modeBinary"),
             messageControls: document.getElementById("messageControls"),
+            binaryControls: document.getElementById("binaryControls"),
             secretText: document.getElementById("secretText"),
             alphabet: document.getElementById("alphabet"),
             binary: document.getElementById("binary"),
@@ -692,8 +680,9 @@
         function updateMode() {
             const usingMessage = els.modeMessage.checked;
             els.messageControls.style.display = usingMessage ? "block" : "none";
-            els.binary.readOnly = usingMessage;
-            els.binary.setAttribute("aria-readonly", String(usingMessage));
+            els.binaryControls.style.display = usingMessage ? "none" : "grid";
+            els.binary.readOnly = false;
+            els.binary.setAttribute("aria-readonly", "false");
             currentBits();
             updateStats();
         }
@@ -762,6 +751,7 @@
                 const rowCapacity = rows[row];
                 const totalRowWidth = rowCapacity * cellW;
                 const xOffset = Math.floor((canvasWidth - totalRowWidth) / 2) - Math.floor(layout.width / 3);
+                const previousVariantByBit = { "0": -1, "1": -1 };
 
                 for (let col = 0; col < rowCapacity; col += 1) {
                     const bit = bits[bitIndex];
@@ -774,12 +764,24 @@
                     const y = Math.floor(row * cellH) + 20;
 
                     const variants = bit === "0" ? state.images.front : state.images.side;
-                    const chosen = variants[Math.floor(rand() * variants.length)];
+                    const chosenIndex = chooseVariantIndex(variants.length, previousVariantByBit[bit], rand);
+                    previousVariantByBit[bit] = chosenIndex;
+                    const chosen = variants[chosenIndex];
                     ctx.drawImage(chosen, x, y, layout.width, layout.height);
                 }
             }
 
             els.canvasSize.textContent = `${canvasWidth} x ${canvasHeight}`;
+        }
+
+        function chooseVariantIndex(variantCount, previousIndex, rand) {
+            if (variantCount <= 1) return 0;
+
+            let nextIndex = Math.floor(rand() * variantCount);
+            if (nextIndex === previousIndex) {
+                nextIndex = (nextIndex + 1 + Math.floor(rand() * (variantCount - 1))) % variantCount;
+            }
+            return nextIndex;
         }
 
         async function copyBits() {
