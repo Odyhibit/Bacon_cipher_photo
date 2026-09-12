@@ -5,7 +5,7 @@ A small web tool for hiding and decoding Bacon cipher messages in a Friedman-ins
 The project was inspired by William F. Friedman’s “Knowledge is Power” group photograph, where people facing forward or sideways encode a message using Francis Bacon’s biliteral cipher. A good account of the story is William H. Sherman’s Cabinet article, [“How to Make Anything Signify Anything”](https://www.cabinetmagazine.org/issues/40/sherman.php).
 
 ## Try it out
-
+https://odyhibit.github.io/Bacon_cipher_photo/
 
 ## What It Does
 
