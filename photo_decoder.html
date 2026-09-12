@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bacon Cipher Group Photo Decoder</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #241d18;
+            --muted: #6a5d52;
+            --line: #d7c8ad;
+            --accent: #8f3f2d;
+            --accent-dark: #642819;
+            --zero: #2c7655;
+            --one: #8f3f2d;
+            --shadow: 0 18px 48px rgba(48, 35, 20, 0.18);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--ink);
+            background: #d8c5a6;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        body::before {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            content: "";
+            background:
+                linear-gradient(rgba(62, 43, 24, 0.22), rgba(62, 43, 24, 0.1)),
+                url("images/background.png") center / cover;
+            filter: saturate(0.75);
+        }
+
+        button,
+        input,
+        textarea,
+        select {
+            font: inherit;
+        }
+
+        .app {
+            width: min(1500px, calc(100vw - 32px));
+            margin: 0 auto;
+            padding: 28px 0 40px;
+        }
+
+        header {
+            display: block;
+            padding: 18px 0 22px;
+        }
+
+        h1 {
+            margin: 0;
+            color: #fff8e8;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(2rem, 4vw, 4.4rem);
+            line-height: 0.95;
+            letter-spacing: 0;
+            text-shadow: 0 2px 12px rgba(34, 22, 12, 0.55);
+        }
+
+        .lede {
+            max-width: 720px;
+            margin: 14px 0 0;
+            color: #fff3dd;
+            font-size: 1rem;
+            line-height: 1.55;
+            text-shadow: 0 1px 8px rgba(34, 22, 12, 0.62);
+        }
+
+        .page-link {
+            display: inline-flex;
+            align-items: center;
+            min-height: 38px;
+            margin-top: 16px;
+            border: 1px solid rgba(255, 248, 232, 0.46);
+            border-radius: 4px;
+            background: rgba(36, 29, 24, 0.28);
+            color: #fff8e8;
+            padding: 8px 12px;
+            font-size: 0.94rem;
+            font-weight: 800;
+            text-decoration: none;
+            text-shadow: 0 1px 8px rgba(34, 22, 12, 0.62);
+        }
+
+        .page-link:hover {
+            background: rgba(36, 29, 24, 0.42);
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(320px, 440px) minmax(0, 1fr);
+            gap: 22px;
+            align-items: start;
+        }
+
+        .controls {
+            display: grid;
+            gap: 14px;
+        }
+
+        .panel,
+        .preview {
+            border: 1px solid rgba(81, 54, 30, 0.22);
+            background: rgba(255, 250, 240, 0.92);
+            box-shadow: var(--shadow);
+        }
+
+        .panel {
+            padding: 16px;
+        }
+
+        .panel h2 {
+            margin: 0 0 12px;
+            font-size: 1.05rem;
+            line-height: 1.25;
+            font-weight: 800;
+        }
+
+        .field {
+            display: grid;
+            gap: 7px;
+            margin-top: 12px;
+        }
+
+        .field:first-of-type {
+            margin-top: 0;
+        }
+
+        label {
+            color: #3a2d23;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        textarea,
+        input,
+        select {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #fffdf7;
+            color: var(--ink);
+            padding: 10px 11px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 0.95rem;
+        }
+
+        textarea:focus,
+        input:focus,
+        select:focus {
+            border-color: var(--accent);
+            outline: 2px solid rgba(143, 63, 45, 0.18);
+        }
+
+        textarea {
+            min-height: 96px;
+            resize: vertical;
+        }
+
+        .dropzone {
+            display: grid;
+            place-items: center;
+            min-height: 118px;
+            border: 1px dashed rgba(100, 40, 25, 0.55);
+            background: rgba(244, 234, 217, 0.66);
+            color: #3a2d23;
+            cursor: pointer;
+            padding: 16px;
+            text-align: center;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        .dropzone:hover,
+        .dropzone.dragover {
+            border-color: var(--accent);
+            background: #f4ead9;
+        }
+
+        .dropzone strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .dropzone span {
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .range-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 52px;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .stepper {
+            display: grid;
+            grid-template-columns: 44px minmax(0, 1fr) 44px;
+            gap: 6px;
+        }
+
+        .stepper input {
+            text-align: center;
+        }
+
+        .stepper button {
+            min-height: 42px;
+            padding: 8px;
+        }
+
+        input[type="range"] {
+            padding: 0;
+            accent-color: var(--accent);
+        }
+
+        .range-value {
+            border: 1px solid var(--line);
+            background: #efe4d0;
+            padding: 5px 6px;
+            color: #38291f;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        button {
+            min-height: 44px;
+            border: 0;
+            border-radius: 4px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-weight: 800;
+        }
+
+        .primary {
+            background: var(--accent);
+            color: #fff8e8;
+        }
+
+        .primary:hover {
+            background: var(--accent-dark);
+        }
+
+        .secondary {
+            border: 1px solid var(--line);
+            background: #f4ead9;
+            color: var(--ink);
+        }
+
+        .secondary:hover {
+            background: #eadbc2;
+        }
+
+        .meta {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .stat {
+            border: 1px solid rgba(137, 104, 65, 0.28);
+            background: rgba(244, 234, 217, 0.68);
+            padding: 9px;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        .stat span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .stat strong {
+            display: block;
+            margin-top: 4px;
+            font-size: 1rem;
+        }
+
+        .binary-box {
+            font-family: "SFMono-Regular", Consolas, monospace;
+            font-size: 0.86rem;
+            line-height: 1.5;
+            word-break: break-all;
+        }
+
+        .error {
+            display: none;
+            margin-top: 12px;
+            border: 1px solid #bd6a5d;
+            background: #fff0eb;
+            color: #7a2518;
+            padding: 10px 12px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .slot-list {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 6px;
+            max-height: 230px;
+            overflow: auto;
+            margin-top: 10px;
+        }
+
+        .slot-chip {
+            min-height: 34px;
+            border: 1px solid rgba(81, 54, 30, 0.2);
+            background: #f4ead9;
+            color: var(--ink);
+            padding: 4px 6px;
+            font-size: 0.78rem;
+        }
+
+        .slot-chip[data-state="0"] {
+            background: rgba(44, 118, 85, 0.14);
+            border-color: rgba(44, 118, 85, 0.52);
+        }
+
+        .slot-chip[data-state="1"] {
+            background: rgba(143, 63, 45, 0.14);
+            border-color: rgba(143, 63, 45, 0.52);
+        }
+
+        .preview {
+            min-height: min(78vh, 900px);
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            overflow: hidden;
+        }
+
+        .preview-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(81, 54, 30, 0.18);
+            padding: 12px 14px;
+            background: rgba(255, 250, 240, 0.96);
+        }
+
+        .preview-bar h2 {
+            margin: 0;
+            font-size: 1.05rem;
+            line-height: 1.25;
+            font-weight: 800;
+        }
+
+        .zoom-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .zoom-controls button {
+            min-height: 34px;
+            padding: 6px 10px;
+            font-size: 0.82rem;
+        }
+
+        .zoom-controls span {
+            min-width: 52px;
+            color: var(--muted);
+            font-size: 0.86rem;
+            text-align: right;
+        }
+
+        .canvas-wrap {
+            min-height: 420px;
+            overflow: auto;
+            padding: 18px;
+            background:
+                linear-gradient(45deg, rgba(72, 53, 32, 0.08) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(72, 53, 32, 0.08) 25%, transparent 25%),
+                #cbb590;
+            background-size: 30px 30px;
+        }
+
+        .stage-shell {
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .stage {
+            position: relative;
+            transform-origin: top left;
+        }
+
+        canvas {
+            display: block;
+            max-width: none;
+            border: 0;
+            outline: 1px solid rgba(44, 32, 21, 0.25);
+            background: #dfd0b6;
+            box-shadow: 0 14px 32px rgba(42, 31, 19, 0.35);
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .slot-marker {
+            position: absolute;
+            width: var(--marker-size, 34px);
+            height: var(--marker-size, 34px);
+            display: grid;
+            place-items: center;
+            border: 0;
+            background: transparent;
+            color: var(--zero);
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: calc(var(--marker-size, 34px) * 0.68);
+            font-weight: 900;
+            line-height: 1;
+            pointer-events: auto;
+            text-shadow:
+                0 0 2px #fffaf0,
+                0 0 5px #fffaf0,
+                1px 0 0 #fffaf0,
+                -1px 0 0 #fffaf0,
+                0 1px 0 #fffaf0,
+                0 -1px 0 #fffaf0,
+                0 2px 8px rgba(34, 22, 12, 0.42);
+            transform: translate(-50%, -50%);
+        }
+
+        .slot-marker[data-state="0"] {
+            color: var(--zero);
+        }
+
+        .slot-marker[data-state="1"] {
+            color: var(--one);
+        }
+
+        .hint {
+            margin-top: 10px;
+            color: var(--muted);
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 0.86rem;
+            line-height: 1.45;
+        }
+
+        @media (max-width: 980px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 620px) {
+            .app {
+                width: min(100vw - 20px, 1500px);
+                padding-top: 12px;
+            }
+
+            .grid-2,
+            .meta,
+            .actions {
+                grid-template-columns: 1fr;
+            }
+
+            .slot-list {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="app">
+        <header>
+            <div>
+                <h1>Bacon Cipher Group Photo Decoder</h1>
+                <p class="lede">Decode images made by the generator by matching each expected figure position against the included front-facing and turned figure templates.</p>
+                <a class="page-link" href="web_version.html">Open Generator</a>
+            </div>
+        </header>
+
+        <section class="workspace" aria-label="Decoder">
+            <div class="controls">
+                <section class="panel">
+                    <h2>Image</h2>
+                    <label class="dropzone" id="dropzone" for="fileInput">
+                        <input type="file" id="fileInput" accept="image/*" hidden>
+                        <span>
+                            <strong>Choose or drop a generated PNG</strong>
+                            <span id="fileName">No image selected</span>
+                        </span>
+                    </label>
+                    <div class="actions">
+                        <button class="primary" id="analyzeBtn" type="button">Analyze Image</button>
+                        <button class="secondary" id="clearBtn" type="button">Clear</button>
+                    </div>
+                    <div class="error" id="errorBox"></div>
+                </section>
+
+                <section class="panel">
+                    <h2>Generator Settings</h2>
+                    <div class="grid-2">
+                        <div class="field">
+                            <label for="cols">Columns</label>
+                            <input type="number" id="cols" value="13" min="3" max="30">
+                        </div>
+                        <div class="field">
+                            <label for="totalFaces">Total Faces</label>
+                            <div class="stepper">
+                                <button class="secondary" id="faceDownBtn" type="button" aria-label="Decrease total faces">-</button>
+                                <input type="number" id="totalFaces" value="0" min="0" max="2000">
+                                <button class="secondary" id="faceUpBtn" type="button" aria-label="Increase total faces">+</button>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="width">Figure Width</label>
+                            <input type="number" id="width" value="500" min="80" max="900">
+                        </div>
+                        <div class="field">
+                            <label for="height">Figure Height</label>
+                            <input type="number" id="height" value="760" min="120" max="1200">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="matchTop">Match Top Region</label>
+                        <div class="range-row">
+                            <input type="range" id="matchTop" min="0.2" max="1" step="0.05" value="0.4">
+                            <span class="range-value" id="matchTop_value">0.40</span>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="overlap_x">Horizontal Overlap</label>
+                        <div class="range-row">
+                            <input type="range" id="overlap_x" min="0" max="0.9" step="0.01" value="0.75">
+                            <span class="range-value" id="overlap_x_value">0.75</span>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="overlap_y">Vertical Overlap</label>
+                        <div class="range-row">
+                            <input type="range" id="overlap_y" min="0" max="0.9" step="0.01" value="0.8">
+                            <span class="range-value" id="overlap_y_value">0.80</span>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="offset">Odd Row Offset</label>
+                        <div class="range-row">
+                            <input type="range" id="offset" min="0" max="1" step="0.01" value="0">
+                            <span class="range-value" id="offset_value">0.00</span>
+                        </div>
+                    </div>
+                    <p class="hint">Use the same settings as the image generator. Set total faces for an exact final row; 0 scans full rows and trims obvious empty slots.</p>
+                </section>
+
+                <section class="panel">
+                    <h2>Decoded Output</h2>
+                    <div class="grid-2">
+                        <div class="field">
+                            <label for="alphabet">Alphabet</label>
+                            <select id="alphabet">
+                                <option value="complete">Complete A-Z</option>
+                                <option value="original" selected>Original I/J and U/V</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="expectedChars">Message Characters</label>
+                            <input type="number" id="expectedChars" value="0" min="0" max="500">
+                        </div>
+                    </div>
+
+                    <div class="meta" aria-live="polite">
+                        <div class="stat">
+                            <span>Active Slots</span>
+                            <strong id="activeCount">0</strong>
+                        </div>
+                        <div class="stat">
+                            <span>Groups</span>
+                            <strong id="groupCount">0</strong>
+                        </div>
+                        <div class="stat">
+                            <span>Confidence</span>
+                            <strong id="confidence">0%</strong>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="binary">Binary String</label>
+                        <textarea id="binary" class="binary-box" readonly spellcheck="false"></textarea>
+                    </div>
+                    <div class="field">
+                        <label for="decoded">Decoded Message</label>
+                        <textarea id="decoded" readonly spellcheck="false"></textarea>
+                    </div>
+                    <div class="actions">
+                        <button class="secondary" id="copyBitsBtn" type="button">Copy Bits</button>
+                        <button class="secondary" id="copyMessageBtn" type="button">Copy Message</button>
+                    </div>
+                    <p class="hint">Set message characters to fill total faces automatically at 5 faces per letter. Leave it at 0 to decode every active group.</p>
+                </section>
+
+                <section class="panel">
+                    <h2>Face States</h2>
+                    <p class="hint">Click a circle on the image, or a chip below, to switch that face between 0 and 1.</p>
+                    <div class="slot-list" id="slotList"></div>
+                </section>
+            </div>
+
+            <section class="preview">
+                <div class="preview-bar">
+                    <h2>Analysis Overlay</h2>
+                    <div class="zoom-controls" aria-label="Zoom controls">
+                        <button class="secondary" id="zoomOutBtn" type="button">-</button>
+                        <button class="secondary" id="fitBtn" type="button">Fit</button>
+                        <button class="secondary" id="zoomInBtn" type="button">+</button>
+                        <span id="zoomLabel">100%</span>
+                    </div>
+                    <span id="imageSize">No image loaded</span>
+                </div>
+                <div class="canvas-wrap">
+                    <div class="stage-shell" id="stageShell">
+                        <div class="stage" id="stage">
+                            <canvas id="canvas" width="1" height="1" aria-label="Uploaded Bacon cipher group photo"></canvas>
+                            <div class="overlay" id="overlay"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script>
+        const assetPaths = {
+            front: ["images/front_1.png", "images/front_2.png", "images/front_3.png"],
+            side: ["images/side_1.png", "images/side_2.png", "images/side_3.png"]
+        };
+
+        const originalBaconDictionary = {
+            a: "00000", b: "00001", c: "00010", d: "00011", e: "00100",
+            f: "00101", g: "00110", h: "00111", i: "01000", j: "01000",
+            k: "01001", l: "01010", m: "01011", n: "01100", o: "01101",
+            p: "01110", q: "01111", r: "10000", s: "10001", t: "10010",
+            u: "10011", v: "10011", w: "10100", x: "10101", y: "10110",
+            z: "10111"
+        };
+
+        const reverseOriginal = Object.entries(originalBaconDictionary).reduce((acc, entry) => {
+            const [letter, bits] = entry;
+            if (!acc[bits]) acc[bits] = letter.toUpperCase();
+            return acc;
+        }, {});
+
+        const els = {
+            dropzone: document.getElementById("dropzone"),
+            fileInput: document.getElementById("fileInput"),
+            fileName: document.getElementById("fileName"),
+            analyzeBtn: document.getElementById("analyzeBtn"),
+            clearBtn: document.getElementById("clearBtn"),
+            cols: document.getElementById("cols"),
+            totalFaces: document.getElementById("totalFaces"),
+            faceDownBtn: document.getElementById("faceDownBtn"),
+            faceUpBtn: document.getElementById("faceUpBtn"),
+            width: document.getElementById("width"),
+            height: document.getElementById("height"),
+            matchTop: document.getElementById("matchTop"),
+            overlapX: document.getElementById("overlap_x"),
+            overlapY: document.getElementById("overlap_y"),
+            offset: document.getElementById("offset"),
+            matchTopValue: document.getElementById("matchTop_value"),
+            overlapXValue: document.getElementById("overlap_x_value"),
+            overlapYValue: document.getElementById("overlap_y_value"),
+            offsetValue: document.getElementById("offset_value"),
+            alphabet: document.getElementById("alphabet"),
+            expectedChars: document.getElementById("expectedChars"),
+            activeCount: document.getElementById("activeCount"),
+            groupCount: document.getElementById("groupCount"),
+            confidence: document.getElementById("confidence"),
+            binary: document.getElementById("binary"),
+            decoded: document.getElementById("decoded"),
+            copyBitsBtn: document.getElementById("copyBitsBtn"),
+            copyMessageBtn: document.getElementById("copyMessageBtn"),
+            slotList: document.getElementById("slotList"),
+            imageSize: document.getElementById("imageSize"),
+            zoomOutBtn: document.getElementById("zoomOutBtn"),
+            fitBtn: document.getElementById("fitBtn"),
+            zoomInBtn: document.getElementById("zoomInBtn"),
+            zoomLabel: document.getElementById("zoomLabel"),
+            errorBox: document.getElementById("errorBox"),
+            canvas: document.getElementById("canvas"),
+            overlay: document.getElementById("overlay"),
+            stageShell: document.getElementById("stageShell"),
+            stage: document.getElementById("stage")
+        };
+
+        const state = {
+            templatesReady: false,
+            templates: { front: [], side: [] },
+            image: null,
+            slots: [],
+            zoom: 1
+        };
+
+        function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = () => reject(new Error(`Could not load ${src}`));
+                img.src = src;
+            });
+        }
+
+        function showError(message) {
+            els.errorBox.textContent = message;
+            els.errorBox.style.display = message ? "block" : "none";
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function fitZoom() {
+            if (!state.image) return 1;
+            const wrapRect = els.stageShell.parentElement.getBoundingClientRect();
+            const availableWidth = Math.max(1, wrapRect.width - 2);
+            const availableHeight = Math.max(1, window.innerHeight - 180);
+            return clamp(Math.min(availableWidth / state.image.naturalWidth, availableHeight / state.image.naturalHeight, 1), 0.08, 1);
+        }
+
+        function setZoom(value) {
+            state.zoom = clamp(value, 0.08, 2.5);
+
+            const nativeWidth = state.image ? state.image.naturalWidth : 1;
+            const nativeHeight = state.image ? state.image.naturalHeight : 1;
+            const scaledWidth = Math.max(1, Math.round(nativeWidth * state.zoom));
+            const scaledHeight = Math.max(1, Math.round(nativeHeight * state.zoom));
+            const markerSize = clamp(34 / state.zoom, 26, 58);
+
+            els.stageShell.style.width = `${scaledWidth}px`;
+            els.stageShell.style.height = `${scaledHeight}px`;
+            els.stage.style.width = `${nativeWidth}px`;
+            els.stage.style.height = `${nativeHeight}px`;
+            els.stage.style.transform = `scale(${state.zoom})`;
+            els.stage.style.setProperty("--marker-size", `${markerSize}px`);
+            els.zoomLabel.textContent = `${Math.round(state.zoom * 100)}%`;
+        }
+
+        function fitStage() {
+            setZoom(fitZoom());
+        }
+
+        function adjustZoom(multiplier) {
+            setZoom(state.zoom * multiplier);
+        }
+
+        function updateRangeLabels() {
+            els.matchTopValue.textContent = Number.parseFloat(els.matchTop.value).toFixed(2);
+            els.overlapXValue.textContent = Number.parseFloat(els.overlapX.value).toFixed(2);
+            els.overlapYValue.textContent = Number.parseFloat(els.overlapY.value).toFixed(2);
+            els.offsetValue.textContent = Number.parseFloat(els.offset.value).toFixed(2);
+        }
+
+        function readLayout() {
+            return {
+                cols: Number.parseInt(els.cols.value, 10),
+                totalFaces: Number.parseInt(els.totalFaces.value, 10),
+                width: Number.parseInt(els.width.value, 10),
+                height: Number.parseInt(els.height.value, 10),
+                matchTop: Number.parseFloat(els.matchTop.value),
+                overlapX: Number.parseFloat(els.overlapX.value),
+                overlapY: Number.parseFloat(els.overlapY.value),
+                offset: Number.parseFloat(els.offset.value)
+            };
+        }
+
+        function validateLayout(layout) {
+            if (!state.templatesReady) return "The figure templates are still loading.";
+            if (!state.image) return "Choose a generated image first.";
+            if (!Number.isInteger(layout.cols) || layout.cols < 3) return "Column count must be at least 3.";
+            if (!Number.isInteger(layout.totalFaces) || layout.totalFaces < 0) return "Total faces must be 0 or higher.";
+            if (!Number.isFinite(layout.width) || !Number.isFinite(layout.height) || layout.width < 1 || layout.height < 1) {
+                return "Figure width and height must be positive numbers.";
+            }
+            if (!Number.isFinite(layout.matchTop) || layout.matchTop <= 0 || layout.matchTop > 1) {
+                return "Match top region must be between 0 and 1.";
+            }
+            return "";
+        }
+
+        function canvasContext(width, height) {
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, width);
+            canvas.height = Math.max(1, height);
+            return canvas.getContext("2d", { willReadFrequently: true });
+        }
+
+        function templateImageData(template, width, height) {
+            const ctx = canvasContext(width, height);
+            ctx.drawImage(template, 0, 0, width, height);
+            return ctx.getImageData(0, 0, width, height);
+        }
+
+        function compareTemplate(region, templateData, sampleStep, matchTop) {
+            const data = region.data;
+            const template = templateData.data;
+            const sampleHeight = Math.max(sampleStep, Math.floor(region.height * matchTop));
+            let count = 0;
+            let total = 0;
+
+            for (let y = 0; y < sampleHeight; y += sampleStep) {
+                for (let x = 0; x < region.width; x += sampleStep) {
+                    const i = (y * region.width + x) * 4;
+                    const alpha = template[i + 3];
+                    if (alpha < 48) continue;
+
+                    const dr = data[i] - template[i];
+                    const dg = data[i + 1] - template[i + 1];
+                    const db = data[i + 2] - template[i + 2];
+                    const distance = Math.sqrt((dr * dr) + (dg * dg) + (db * db)) / 441.6729;
+                    total += distance * (alpha / 255);
+                    count += 1;
+                }
+            }
+
+            if (!count) return 1;
+            return total / count;
+        }
+
+        function classifySlot(sourceCtx, x, y, width, height, preparedTemplates, matchTop) {
+            const visibleX = Math.max(0, x);
+            const visibleY = Math.max(0, y);
+            const visibleW = Math.min(width, sourceCtx.canvas.width - visibleX, width + Math.min(0, x));
+            const visibleH = Math.min(height, sourceCtx.canvas.height - visibleY, height + Math.min(0, y));
+
+            if (visibleW < width * 0.25 || visibleH < height * 0.25) {
+                return { state: "empty", confidence: 0, frontScore: 1, sideScore: 1 };
+            }
+
+            const regionCtx = canvasContext(width, height);
+            regionCtx.drawImage(sourceCtx.canvas, x, y, width, height, 0, 0, width, height);
+            const region = regionCtx.getImageData(0, 0, width, height);
+            const sampleStep = Math.max(6, Math.round(Math.min(width, height) / 90));
+
+            const frontScore = Math.min(...preparedTemplates.front.map((template) => compareTemplate(region, template, sampleStep, matchTop)));
+            const sideScore = Math.min(...preparedTemplates.side.map((template) => compareTemplate(region, template, sampleStep, matchTop)));
+            const bestScore = Math.min(frontScore, sideScore);
+            const stateValue = frontScore <= sideScore ? "0" : "1";
+            const separation = Math.abs(frontScore - sideScore);
+            const confidence = Math.max(0, Math.min(1, (0.55 - bestScore) + (separation * 1.9)));
+
+            if (bestScore > 0.46 && separation < 0.025) {
+                return { state: "empty", confidence: 0, frontScore, sideScore };
+            }
+
+            return { state: stateValue, confidence, frontScore, sideScore };
+        }
+
+        function rowCapacitiesForRows(rowCount, cols) {
+            const rows = [];
+            for (let row = 0; row < rowCount; row += 1) {
+                rows.push(row % 2 === 0 ? cols : cols - 1);
+            }
+            return rows;
+        }
+
+        function rowCapacitiesForFaces(totalFaces, cols) {
+            const rows = [];
+            let remaining = totalFaces;
+            let fullRow = true;
+
+            while (remaining > 0) {
+                const capacity = fullRow ? cols : cols - 1;
+                rows.push(Math.min(remaining, capacity));
+                remaining -= capacity;
+                fullRow = !fullRow;
+            }
+
+            return rows;
+        }
+
+        function inferRows(imageHeight, cellH) {
+            if (!cellH) return 0;
+            return Math.max(1, Math.round(imageHeight / cellH) - 1);
+        }
+
+        function rowsForLayout(layout, cellH) {
+            if (layout.totalFaces > 0) {
+                return rowCapacitiesForFaces(layout.totalFaces, layout.cols);
+            }
+            return rowCapacitiesForRows(inferRows(state.image.naturalHeight, cellH), layout.cols);
+        }
+
+        function analyzeImage() {
+            updateRangeLabels();
+            const layout = readLayout();
+            const error = validateLayout(layout);
+            if (error) {
+                showError(error);
+                return;
+            }
+            showError("");
+
+            const cellW = Math.max(1, Math.floor(layout.width * (1 - layout.overlapX)));
+            const cellH = Math.max(1, Math.floor(layout.height * (1 - layout.overlapY)));
+            const rows = rowsForLayout(layout, cellH);
+            const preparedTemplates = {
+                front: state.templates.front.map((template) => templateImageData(template, layout.width, layout.height)),
+                side: state.templates.side.map((template) => templateImageData(template, layout.width, layout.height))
+            };
+
+            const sourceCtx = els.canvas.getContext("2d", { willReadFrequently: true });
+            sourceCtx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+            sourceCtx.drawImage(state.image, 0, 0);
+
+            const slots = [];
+            let index = 0;
+            for (let row = 0; row < rows.length; row += 1) {
+                const rowCapacity = rows[row];
+                const totalRowWidth = rowCapacity * cellW;
+                const xOffset = Math.floor((els.canvas.width - totalRowWidth) / 2) - Math.floor(layout.width / 3);
+
+                for (let col = 0; col < rowCapacity; col += 1) {
+                    let x = xOffset + col * cellW;
+                    if (row % 2 === 1) {
+                        x += Math.floor(cellW * layout.offset);
+                    }
+                    const y = Math.floor(row * cellH) + 20;
+                    const result = classifySlot(sourceCtx, x, y, layout.width, layout.height, preparedTemplates, layout.matchTop);
+
+                    slots.push({
+                        id: index,
+                        row,
+                        col,
+                        x,
+                        y,
+                        width: layout.width,
+                        height: layout.height,
+                        state: result.state,
+                        confidence: result.confidence,
+                        frontScore: result.frontScore,
+                        sideScore: result.sideScore
+                    });
+                    index += 1;
+                }
+            }
+
+            state.slots = layout.totalFaces > 0 ? slots : trimTrailingEmpty(slots);
+            renderSlots();
+            updateDecodedOutput();
+        }
+
+        function trimTrailingEmpty(slots) {
+            let end = slots.length;
+            while (end > 0 && slots[end - 1].state === "empty") {
+                end -= 1;
+            }
+            return slots.slice(0, end);
+        }
+
+        function nextState(current) {
+            if (current === "empty") return "0";
+            if (current === "0") return "1";
+            return "0";
+        }
+
+        function cycleSlot(id) {
+            const slot = state.slots.find((candidate) => candidate.id === id);
+            if (!slot) return;
+            slot.state = nextState(slot.state);
+            slot.confidence = Math.max(slot.confidence, 0.5);
+            renderSlots();
+            updateDecodedOutput();
+        }
+
+        function markerPosition(slot) {
+            return {
+                x: slot.x + (slot.width * 0.45),
+                y: slot.y + (slot.height * 0.13)
+            };
+        }
+
+        function renderSlots() {
+            els.overlay.innerHTML = "";
+            els.slotList.innerHTML = "";
+
+            state.slots.forEach((slot, displayIndex) => {
+                const position = markerPosition(slot);
+                const marker = document.createElement("button");
+                marker.type = "button";
+                marker.className = "slot-marker";
+                marker.dataset.state = slot.state;
+                marker.style.left = `${position.x}px`;
+                marker.style.top = `${position.y}px`;
+                marker.textContent = slot.state === "1" ? "1" : "0";
+                marker.title = `Face ${displayIndex + 1}: ${slotLabel(slot.state)}`;
+                marker.addEventListener("click", () => cycleSlot(slot.id));
+                els.overlay.appendChild(marker);
+
+                const chip = document.createElement("button");
+                chip.type = "button";
+                chip.className = "slot-chip";
+                chip.dataset.state = slot.state;
+                chip.textContent = `${displayIndex + 1}: ${slotLabel(slot.state)}`;
+                chip.title = `Confidence ${Math.round(slot.confidence * 100)}%`;
+                chip.addEventListener("click", () => cycleSlot(slot.id));
+                els.slotList.appendChild(chip);
+            });
+        }
+
+        function slotLabel(stateValue) {
+            if (stateValue === "1") return "1 side";
+            return "0 front";
+        }
+
+        function activeBits() {
+            let bits = state.slots
+                .filter((slot) => slot.state === "0" || slot.state === "1")
+                .map((slot) => slot.state)
+                .join("");
+
+            const expectedChars = Number.parseInt(els.expectedChars.value, 10);
+            if (expectedChars > 0) {
+                bits = bits.slice(0, expectedChars * 5);
+            }
+            return bits;
+        }
+
+        function decodeBits(bits) {
+            const alphabet = els.alphabet.value;
+            let decoded = "";
+
+            for (let i = 0; i + 4 < bits.length; i += 5) {
+                const chunk = bits.slice(i, i + 5);
+                if (alphabet === "original") {
+                    decoded += reverseOriginal[chunk] || "?";
+                } else {
+                    const value = Number.parseInt(chunk, 2);
+                    decoded += value >= 0 && value <= 25 ? String.fromCharCode(65 + value) : "?";
+                }
+            }
+
+            return decoded;
+        }
+
+        function updateDecodedOutput() {
+            const bits = activeBits();
+            const activeSlots = state.slots.filter((slot) => slot.state === "0" || slot.state === "1");
+            const avgConfidence = activeSlots.length
+                ? activeSlots.reduce((sum, slot) => sum + slot.confidence, 0) / activeSlots.length
+                : 0;
+
+            els.binary.value = bits;
+            els.decoded.value = decodeBits(bits);
+            els.activeCount.textContent = String(activeSlots.length);
+            els.groupCount.textContent = `${Math.floor(bits.length / 5)}${bits.length % 5 ? "+" : ""}`;
+            els.confidence.textContent = `${Math.round(avgConfidence * 100)}%`;
+        }
+
+        function setTotalFaces(value, shouldAnalyze = true) {
+            const total = Math.max(0, Number.parseInt(value, 10) || 0);
+            els.totalFaces.value = String(total);
+            if (shouldAnalyze && state.image) {
+                analyzeImage();
+            }
+        }
+
+        function adjustTotalFaces(delta) {
+            const current = Number.parseInt(els.totalFaces.value, 10);
+            const fallback = state.slots.length || ((Number.parseInt(els.expectedChars.value, 10) || 0) * 5);
+            setTotalFaces((current > 0 ? current : fallback) + delta);
+        }
+
+        function syncFaceCountFromCharacters() {
+            const chars = Math.max(0, Number.parseInt(els.expectedChars.value, 10) || 0);
+            if (chars > 0) {
+                setTotalFaces(chars * 5);
+            } else {
+                updateDecodedOutput();
+            }
+        }
+
+        function handleFile(file) {
+            if (!file || !file.type.startsWith("image/")) {
+                showError("Choose a valid image file.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                const img = new Image();
+                img.onload = () => {
+                    state.image = img;
+                    els.canvas.width = img.naturalWidth;
+                    els.canvas.height = img.naturalHeight;
+                    els.overlay.style.width = `${img.naturalWidth}px`;
+                    els.overlay.style.height = `${img.naturalHeight}px`;
+                    els.canvas.getContext("2d").drawImage(img, 0, 0);
+                    els.fileName.textContent = file.name;
+                    els.imageSize.textContent = `${img.naturalWidth} x ${img.naturalHeight}`;
+                    fitStage();
+                    state.slots = [];
+                    renderSlots();
+                    updateDecodedOutput();
+                    showError("");
+                };
+                img.onerror = () => showError("That image could not be loaded.");
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function copyText(text, button, label) {
+            try {
+                await navigator.clipboard.writeText(text);
+                button.textContent = "Copied";
+                window.setTimeout(() => {
+                    button.textContent = label;
+                }, 1200);
+            } catch (error) {
+                showError("Clipboard access is not available in this browser.");
+            }
+        }
+
+        function clearImage() {
+            state.image = null;
+            state.slots = [];
+            els.fileInput.value = "";
+            els.fileName.textContent = "No image selected";
+            els.imageSize.textContent = "No image loaded";
+            els.canvas.width = 1;
+            els.canvas.height = 1;
+            els.overlay.style.width = "1px";
+            els.overlay.style.height = "1px";
+            els.stage.style.width = "1px";
+            els.stage.style.height = "1px";
+            els.stage.style.transform = "scale(1)";
+            setZoom(1);
+            renderSlots();
+            updateDecodedOutput();
+            showError("");
+        }
+
+        function bindEvents() {
+            els.fileInput.addEventListener("change", (event) => handleFile(event.target.files[0]));
+
+            ["dragenter", "dragover"].forEach((type) => {
+                els.dropzone.addEventListener(type, (event) => {
+                    event.preventDefault();
+                    els.dropzone.classList.add("dragover");
+                });
+            });
+
+            ["dragleave", "drop"].forEach((type) => {
+                els.dropzone.addEventListener(type, (event) => {
+                    event.preventDefault();
+                    els.dropzone.classList.remove("dragover");
+                });
+            });
+
+            els.dropzone.addEventListener("drop", (event) => handleFile(event.dataTransfer.files[0]));
+            els.analyzeBtn.addEventListener("click", analyzeImage);
+            els.clearBtn.addEventListener("click", clearImage);
+            els.zoomOutBtn.addEventListener("click", () => adjustZoom(0.85));
+            els.fitBtn.addEventListener("click", fitStage);
+            els.zoomInBtn.addEventListener("click", () => adjustZoom(1.18));
+            els.faceDownBtn.addEventListener("click", () => adjustTotalFaces(-1));
+            els.faceUpBtn.addEventListener("click", () => adjustTotalFaces(1));
+            els.totalFaces.addEventListener("change", () => setTotalFaces(els.totalFaces.value));
+            els.copyBitsBtn.addEventListener("click", () => copyText(els.binary.value, els.copyBitsBtn, "Copy Bits"));
+            els.copyMessageBtn.addEventListener("click", () => copyText(els.decoded.value, els.copyMessageBtn, "Copy Message"));
+            els.alphabet.addEventListener("change", updateDecodedOutput);
+            els.expectedChars.addEventListener("change", syncFaceCountFromCharacters);
+
+            [els.matchTop, els.overlapX, els.overlapY, els.offset].forEach((el) => el.addEventListener("input", updateRangeLabels));
+            window.addEventListener("resize", () => {
+                if (state.image) fitStage();
+            });
+        }
+
+        async function boot() {
+            bindEvents();
+            updateRangeLabels();
+
+            try {
+                const [front, side] = await Promise.all([
+                    Promise.all(assetPaths.front.map(loadImage)),
+                    Promise.all(assetPaths.side.map(loadImage))
+                ]);
+                state.templates.front = front;
+                state.templates.side = side;
+                state.templatesReady = true;
+            } catch (error) {
+                showError(`${error.message}. Open this page from the project folder or a local web server.`);
+            }
+        }
+
+        boot();
+    </script>
+</body>
+</html>

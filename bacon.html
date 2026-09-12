@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bacon Cipher Steganography (Complete & Original Alphabets)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 20px auto;
+      line-height: 1.5;
+    }
+    label {
+      display: block;
+      margin-top: 1em;
+      font-weight: bold;
+    }
+    textarea,
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 0.5em;
+      padding: 6px;
+      font-size: 1em;
+    }
+    textarea {
+      height: 120px;
+      resize: vertical;
+    }
+
+    /* ─── Control Bar: two selects + buttons inline ─── */
+    #controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 1em;
+    }
+    /* Both selects in #controls are now 30% wide */
+    #controls select {
+      width: 30%;
+      box-sizing: border-box;
+      padding: 6px;
+      font-size: 1em;
+    }
+    #controls button {
+      padding: 8px 16px;
+      font-size: 1em;
+      flex: none;
+    }
+
+    #output {
+      margin-top: 1em;
+      padding: 10px;
+      border: 1px solid #ccc;
+      min-height: 2em;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    #decoded {
+      margin-top: 0.5em;
+      font-style: italic;
+      color: #333;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px;
+      font-size: 1em;
+    }
+    .serif { font-family: serif; }
+    .sans  { font-family: sans-serif; }
+
+  </style>
+</head>
+<body>
+
+  <h2>Bacon‐Cipher Steganography (Complete & Original Alphabets)</h2>
+
+  <!-- 1. Cover text area -->
+  <label for="coverText">Cover Text (where you hide the secret):</label>
+  <textarea id="coverText" placeholder="Type or paste your cover text here…"></textarea>
+
+  <!-- 2. Secret message input -->
+  <label for="secretText">Secret Message (letters only):</label>
+  <input type="text" id="secretText" placeholder="Type the secret message (A–Z only)…" />
+
+  <!-- 3. Controls: Mode dropdown | Encode/Decode buttons | Alphabet dropdown -->
+  <div id="controls">
+    <!-- Mode selector (Bold, Italic, etc.) -->
+    <select id="modeSelect">
+      <option value="Bold">Bold</option>
+      <option value="Italic">Italic</option>
+      <option value="Strikethrough">Strikethrough</option>
+      <option value="Capital">Capital</option>
+      <option value="Underscore">Underscore</option>
+      <option value="Font">Font (Serif/Sans)</option>
+
+    </select>
+
+    <button id="encodeBtn">Encode</button>
+    <button id="decodeBtn">Decode</button>
+
+    <!-- Alphabet selector (Complete vs. Original) -->
+    <select id="alphabetSelect">
+      <option value="Complete" selected>Complete</option>
+      <option value="Original">Original</option>
+    </select>
+  </div>
+
+  <!-- 4. Output container (styled text) -->
+  <label for="output"><strong>Result (copy/paste this into Word/PowerPoint):</strong></label>
+  <div id="output" contenteditable="false"></div>
+
+  <!-- 5. Decoded‐message display -->
+  <label for="decoded">Decoded Secret:</label>
+  <input type="text" id="decoded" readonly />
+
+  <script>
+    (function() {
+      // ─── Static dictionary for “Original” 24-letter Bacon mapping ───
+      const originalBaconDictionary = {
+        "a": "00000", "b": "00001", "c": "00010", "d": "00011",
+        "e": "00100", "f": "00101", "g": "00110", "h": "00111",
+        "i": "01000", "j": "01000",
+        "k": "01001", "l": "01010", "m": "01011", "n": "01100",
+        "o": "01101", "p": "01110", "q": "01111", "r": "10000",
+        "s": "10001", "t": "10010", "u": "10011", "v": "10011",
+        "w": "10100", "x": "10101", "y": "10110", "z": "10111"
+      };
+      // Build reverse lookup: bitString → letter (first occurrence)
+      const reverseOriginal = {};
+      for (let [letter, bitsStr] of Object.entries(originalBaconDictionary)) {
+        if (!(bitsStr in reverseOriginal)) {
+          reverseOriginal[bitsStr] = letter;
+        }
+      }
+
+      // ─── Utility functions ───
+
+      // 1. Map a letter A–Z → its 5-bit “Complete” Bacon representation [0|1,...]
+      function charToCompleteBits(ch) {
+        const code = ch.charCodeAt(0) - 65; // 0..25
+        if (code < 0 || code > 25) return null;
+        let bits = code.toString(2).padStart(5, '0'); // e.g. "00010"
+        return bits.split('').map(b => parseInt(b, 10));
+      }
+
+      // 2. Map a letter A–Z → its 5-bit “Original” Bacon bits via originalBaconDictionary
+      function charToOriginalBits(ch) {
+        const lower = ch.toLowerCase();
+        let bitsStr = originalBaconDictionary[lower];
+        if (!bitsStr) return null;
+        return bitsStr.split('').map(b => parseInt(b, 10));
+      }
+
+      // 3. Append a 5-bit “stop” code: value = 26 → binary 11010
+      function getStopBits() {
+        return "11010".split('').map(b => parseInt(b, 10));
+      }
+
+      // 4. BitStream helper to consume bits one at a time
+      class BitStream {
+        constructor(bitsArray) {
+          this.bits = bitsArray;
+          this.idx  = 0;
+        }
+        next() {
+          if (this.idx >= this.bits.length) return null;
+          return this.bits[this.idx++];
+        }
+        remaining() {
+          return this.bits.length - this.idx;
+        }
+      }
+
+      // 5. Count only letters A–Z or a–z in a string
+      function countLetters(str) {
+        let c = 0;
+        for (let ch of str) {
+          if (/[A-Za-z]/.test(ch)) c++;
+        }
+        return c;
+      }
+
+      // 6. Convert 5-bit array [0,1,1,0,1] → numeric value 0..31
+      function bitsToValue(bitArr) {
+        return parseInt(bitArr.join(''), 2);
+      }
+      // Convert 0..25 → A..Z; else return null
+      function completeValueToChar(val) {
+        if (val >= 0 && val <= 25) {
+          return String.fromCharCode(65 + val);
+        }
+        return null;
+      }
+
+      // ─── Main logic ───
+
+      const coverEl      = document.getElementById('coverText');
+      const secretEl     = document.getElementById('secretText');
+      const modeEl       = document.getElementById('modeSelect');
+      const alphabetEl   = document.getElementById('alphabetSelect');
+      const encodeBtn    = document.getElementById('encodeBtn');
+      const decodeBtn    = document.getElementById('decodeBtn');
+      const outputDiv    = document.getElementById('output');
+      const decodedEl    = document.getElementById('decoded');
+
+      // ENCODE handler
+      encodeBtn.addEventListener('click', () => {
+        // Clear previous output/decoded
+        outputDiv.innerHTML = '';
+        decodedEl.value     = '';
+
+        let coverText  = coverEl.value;
+        let secretText = secretEl.value.toUpperCase();
+
+        // 1. Strip non-A–Z from secret
+        secretText = secretText.split('').filter(ch => /[A-Z]/.test(ch)).join('');
+        if (secretText.length === 0) {
+          alert('Secret must contain at least one A–Z letter.');
+          return;
+        }
+
+        // 2. Build full bit array depending on chosen alphabet
+        const alphabet = alphabetEl.value; // "Complete" or "Original"
+        let allBits = [];
+
+        // 2a. Convert each letter of secret → 5 bits
+        for (let ch of secretText) {
+          let bits = null;
+          if (alphabet === 'Complete') {
+            bits = charToCompleteBits(ch);
+          } else { // "Original"
+            bits = charToOriginalBits(ch);
+          }
+          if (!bits) {
+            // Shouldn’t happen, because we filtered to A–Z. But just in case:
+            alert(`Skipping invalid character “${ch}” for ${alphabet} alphabet.`);
+            continue;
+          }
+          allBits.push(...bits);
+        }
+
+        // 2b. Append 5-bit stop code (11010) for both alphabets
+        allBits.push(...getStopBits());
+        const bitStream = new BitStream(allBits);
+
+        // 3. Ensure coverText has enough letters to hide (secretLength*5 + 5) bits
+        const letterCount = countLetters(coverText);
+        const neededCount = (secretText.length * 5) + 5;
+        if (letterCount < neededCount) {
+          alert(
+            'Cover text does not have enough letters.\n' +
+            `You need at least ${neededCount} letters in the cover text, but only found ${letterCount}.`
+          );
+          return;
+        }
+
+        // 4. Determine formatting mode
+        const mode = modeEl.value; // "Bold", "Italic", "Strikethrough", "Capital", or "Underscore"
+        let modeTag = null;
+        switch(mode) {
+          case 'Bold':         modeTag = 'B';  break;
+          case 'Italic':       modeTag = 'I';  break;
+          case 'Strikethrough':modeTag = 'S';  break; // using <s>
+          case 'Underscore':   modeTag = 'U';  break; // using <u>
+          case 'Capital':      modeTag = null; break;
+           case 'Font':       modeTag = null; break;
+        }
+        const isCapitalMode = (mode === 'Capital');
+        const isFontMode = (mode === 'Font');
+
+        // 5. Walk through coverText, mapping each letter to one bit
+        const frag = document.createDocumentFragment();
+        for (let ch of coverText) {
+          if (/[A-Za-z]/.test(ch)) {
+            const bit = bitStream.next();
+            if (bit === null) {
+              // No more bits: append remaining letters plainly
+              frag.appendChild(document.createTextNode(ch));
+            } else {
+              if (isCapitalMode) {
+                // bit=1 → uppercase; bit=0 → lowercase
+                let outChar = (bit === 1) ? ch.toUpperCase() : ch.toLowerCase();
+                frag.appendChild(document.createTextNode(outChar));
+              }
+              else if (isFontMode) {
+                // bit = 1 → serif; bit = 0 → sans
+                let span = document.createElement('span');
+                span.className = bit === 1 ? 'serif' : 'sans';
+                span.textContent = ch;
+                frag.appendChild(span);
+              }
+              else {
+                if (bit === 1) {
+                  // Wrap in chosen tag
+                  let el;
+                  switch(modeTag) {
+                    case 'B': el = document.createElement('b'); break;
+                    case 'I': el = document.createElement('i'); break;
+                    case 'S': el = document.createElement('s'); break;
+                    case 'U': el = document.createElement('u'); break;
+                  }
+                  el.textContent = ch; // preserve original case
+                  frag.appendChild(el);
+                } else {
+                  // bit=0 → plain
+                  frag.appendChild(document.createTextNode(ch));
+                }
+              }
+            }
+          } else {
+            // Non-letter: copy verbatim, no bit consumed
+            frag.appendChild(document.createTextNode(ch));
+          }
+        }
+
+        outputDiv.appendChild(frag);
+        // Now user can copy/paste styled output into Word/PowerPoint
+      });
+
+      // DECODE handler
+      decodeBtn.addEventListener('click', () => {
+        decodedEl.value = '';
+
+        if (!outputDiv.hasChildNodes()) {
+          alert('No encoded text found to decode. Please encode first or paste styled text into the Result area.');
+          return;
+        }
+
+        const mode     = modeEl.value;
+        const alphabet = alphabetEl.value; // "Complete" or "Original"
+
+        let modeTag = null;
+        switch(mode) {
+          case 'Bold':         modeTag = 'B';  break;
+          case 'Italic':       modeTag = 'I';  break;
+          case 'Strikethrough':modeTag = 'S';  break;
+          case 'Underscore':   modeTag = 'U';  break;
+          case 'Capital':      modeTag = null; break;
+        }
+        const isCapitalMode = (mode === 'Capital');
+
+        // 1. Traverse outputDiv to collect bits per letter
+        let bitsArr = [];
+        function recurse(node, inFormatting) {
+          for (let child of node.childNodes) {
+              if (child.nodeType === 1 && child.tagName === 'SPAN' && isFontMode) {
+                // descend but remember formatting by class:
+                let nowSerif = child.classList.contains('serif');
+                recurse(child, nowSerif);
+              }
+            if (child.nodeType === Node.ELEMENT_NODE) {
+              // If this element matches our chosen formatting tag, mark formatting= true
+              let nextFormatting = inFormatting;
+              if (!isCapitalMode && child.tagName === modeTag) {
+                nextFormatting = true;
+              }
+              recurse(child, nextFormatting);
+            } else if (child.nodeType === Node.TEXT_NODE) {
+              // In this text node, each letter → one bit
+              for (let ch of child.textContent) {
+                if (/[A-Za-z]/.test(ch)) {
+                  if (isCapitalMode) {
+                    bitsArr.push(/[A-Z]/.test(ch) ? 1 : 0);
+                  } else {
+                    bitsArr.push(inFormatting ? 1 : 0);
+                  }
+                }
+              }
+            }
+          }
+        }
+        recurse(outputDiv, false);
+
+        // 2. Group bits in fives, stopping on the “stop code” (26 → binary 11010)
+        let decoded = '';
+        for (let i = 0; i + 4 < bitsArr.length; i += 5) {
+          let chunk  = bitsArr.slice(i, i + 5);
+          let val    = bitsToValue(chunk); // 0..31
+
+          // If stop code (26) → break
+          if (val === 26) break;
+
+          if (alphabet === 'Complete') {
+            // 0..25 → A..Z
+            let letter = completeValueToChar(val);
+            if (!letter) break; // invalid → stop
+            decoded += letter;
+          } else {
+            // “Original”: look up chunk string in reverseOriginal
+            let bitStr = chunk.join('');
+            let letterLower = reverseOriginal[bitStr];
+            if (!letterLower) {
+              // not found (or it was the stop code) → stop decoding
+              break;
+            }
+            decoded += letterLower.toUpperCase();
+          }
+        }
+
+        if (decoded.length === 0) {
+          alert('No valid Bacon groups found (or stop code missing).');
+          return;
+        }
+        decodedEl.value = decoded;
+      });
+
+      // (Optional) To allow pasting styled HTML directly into #output,
+      // you can manually toggle contentEditable = true via DevTools, paste, then set back to false.
+    })();
+  </script>
+</body>
+</html>

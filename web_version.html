@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bacon Cipher Group Photo Generator</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #241d18;
+            --muted: #6a5d52;
+            --paper: #fbf6eb;
+            --panel: #fffaf0;
+            --line: #d7c8ad;
+            --accent: #8f3f2d;
+            --accent-dark: #642819;
+            --shadow: 0 18px 48px rgba(48, 35, 20, 0.18);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--ink);
+            background: #d8c5a6;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        body::before {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            content: "";
+            background:
+                linear-gradient(rgba(62, 43, 24, 0.2), rgba(62, 43, 24, 0.08)),
+                url("images/background.png") center / cover;
+            filter: saturate(0.75);
+        }
+
+        button,
+        input,
+        textarea,
+        select {
+            font: inherit;
+        }
+
+        .app {
+            width: min(1480px, calc(100vw - 32px));
+            margin: 0 auto;
+            padding: 28px 0 40px;
+        }
+
+        header {
+            display: block;
+            padding: 18px 0 22px;
+        }
+
+        h1 {
+            margin: 0;
+            color: #fff8e8;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(2rem, 4vw, 4.6rem);
+            line-height: 0.95;
+            letter-spacing: 0;
+            text-shadow: 0 2px 12px rgba(34, 22, 12, 0.55);
+        }
+
+        .lede {
+            max-width: 650px;
+            margin: 14px 0 0;
+            color: #fff3dd;
+            font-size: 1rem;
+            line-height: 1.55;
+            text-shadow: 0 1px 8px rgba(34, 22, 12, 0.62);
+        }
+
+        .page-link {
+            display: inline-flex;
+            align-items: center;
+            min-height: 38px;
+            margin-top: 16px;
+            border: 1px solid rgba(255, 248, 232, 0.46);
+            border-radius: 4px;
+            background: rgba(36, 29, 24, 0.28);
+            color: #fff8e8;
+            padding: 8px 12px;
+            font-size: 0.94rem;
+            font-weight: 800;
+            text-decoration: none;
+            text-shadow: 0 1px 8px rgba(34, 22, 12, 0.62);
+        }
+
+        .page-link:hover {
+            background: rgba(36, 29, 24, 0.42);
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+            gap: 22px;
+            align-items: start;
+        }
+
+        .controls {
+            display: grid;
+            gap: 14px;
+        }
+
+        .panel,
+        .preview {
+            border: 1px solid rgba(81, 54, 30, 0.22);
+            background: rgba(255, 250, 240, 0.9);
+            box-shadow: var(--shadow);
+        }
+
+        .panel {
+            padding: 16px;
+        }
+
+        .panel h2 {
+            margin: 0 0 12px;
+            font-size: 1.05rem;
+            line-height: 1.25;
+            font-weight: 800;
+        }
+
+        .field {
+            display: grid;
+            gap: 7px;
+            margin-top: 12px;
+        }
+
+        .field:first-of-type {
+            margin-top: 0;
+        }
+
+        label {
+            color: #3a2d23;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        textarea,
+        input,
+        select {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #fffdf7;
+            color: var(--ink);
+            padding: 10px 11px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 0.95rem;
+        }
+
+        textarea:focus,
+        input:focus,
+        select:focus {
+            border-color: var(--accent);
+            outline: 2px solid rgba(143, 63, 45, 0.18);
+        }
+
+        textarea {
+            min-height: 92px;
+            resize: vertical;
+        }
+
+        .binary-box {
+            min-height: 112px;
+            font-family: "SFMono-Regular", Consolas, monospace;
+            font-size: 0.86rem;
+            line-height: 1.5;
+            word-break: break-all;
+        }
+
+        .segmented {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            padding: 4px;
+            border: 1px solid var(--line);
+            background: #efe4d0;
+        }
+
+        .segmented input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .segmented label {
+            min-height: 38px;
+            display: grid;
+            place-items: center;
+            padding: 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .segmented input:checked + label {
+            background: var(--accent);
+            color: #fff8e8;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .range-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 52px;
+            gap: 10px;
+            align-items: center;
+        }
+
+        input[type="range"] {
+            padding: 0;
+            accent-color: var(--accent);
+        }
+
+        .range-value {
+            border: 1px solid var(--line);
+            background: #efe4d0;
+            padding: 5px 6px;
+            color: #38291f;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        button {
+            min-height: 44px;
+            border: 0;
+            border-radius: 4px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-weight: 800;
+        }
+
+        .primary {
+            background: var(--accent);
+            color: #fff8e8;
+        }
+
+        .primary:hover {
+            background: var(--accent-dark);
+        }
+
+        .secondary {
+            border: 1px solid var(--line);
+            background: #f4ead9;
+            color: var(--ink);
+        }
+
+        .secondary:hover {
+            background: #eadbc2;
+        }
+
+        .meta {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .stat {
+            border: 1px solid rgba(137, 104, 65, 0.28);
+            background: rgba(244, 234, 217, 0.68);
+            padding: 9px;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        .stat span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .stat strong {
+            display: block;
+            margin-top: 4px;
+            font-size: 1rem;
+        }
+
+        .error {
+            display: none;
+            margin-top: 12px;
+            border: 1px solid #bd6a5d;
+            background: #fff0eb;
+            color: #7a2518;
+            padding: 10px 12px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .preview {
+            min-height: min(76vh, 860px);
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            overflow: hidden;
+        }
+
+        .preview-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(81, 54, 30, 0.18);
+            padding: 12px 14px;
+            background: rgba(255, 250, 240, 0.96);
+        }
+
+        .preview-bar h2 {
+            margin: 0;
+            font-size: 1.05rem;
+            line-height: 1.25;
+            font-weight: 800;
+        }
+
+        .canvas-wrap {
+            display: grid;
+            place-items: center;
+            min-height: 420px;
+            overflow: auto;
+            padding: 18px;
+            background:
+                linear-gradient(45deg, rgba(72, 53, 32, 0.08) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(72, 53, 32, 0.08) 25%, transparent 25%),
+                #cbb590;
+            background-size: 30px 30px;
+        }
+
+        canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            border: 1px solid rgba(44, 32, 21, 0.25);
+            background: #dfd0b6;
+            box-shadow: 0 14px 32px rgba(42, 31, 19, 0.35);
+        }
+
+        .asset-strip {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .asset-strip img {
+            width: 100%;
+            aspect-ratio: 2 / 3;
+            object-fit: contain;
+            border: 1px solid rgba(137, 104, 65, 0.28);
+            background: #efe4d0;
+        }
+
+        @media (max-width: 980px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 620px) {
+            .app {
+                width: min(100vw - 20px, 1480px);
+                padding-top: 12px;
+            }
+
+            .grid-2,
+            .meta,
+            .actions {
+                grid-template-columns: 1fr;
+            }
+
+            .asset-strip {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="app">
+        <header>
+            <div>
+                <h1>Bacon Cipher Group Photo Generator</h1>
+                <p class="lede">Build a Friedman-inspired group portrait from the included figure set. Front-facing people encode zeroes; turned figures encode ones.</p>
+                <a class="page-link" href="photo_decoder.html">Open Decoder</a>
+            </div>
+        </header>
+
+        <section class="workspace" aria-label="Generator">
+            <div class="controls">
+                <section class="panel">
+                    <h2>Message</h2>
+                    <div class="field">
+                        <div class="segmented" role="radiogroup" aria-label="Input mode">
+                            <input type="radio" id="modeMessage" name="inputMode" value="message" checked>
+                            <label for="modeMessage">Secret message</label>
+                            <input type="radio" id="modeBinary" name="inputMode" value="binary">
+                            <label for="modeBinary">Binary bits</label>
+                        </div>
+                    </div>
+
+                    <div id="messageControls">
+                        <div class="field">
+                            <label for="secretText">Secret Message</label>
+                            <textarea id="secretText" spellcheck="false">ATTACK AT DAWN</textarea>
+                        </div>
+                        <div class="grid-2">
+                            <div class="field">
+                                <label for="alphabet">Alphabet</label>
+                                <select id="alphabet">
+                                    <option value="complete">Complete A-Z</option>
+                                    <option value="original" selected>Original I/J and U/V</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="binary">Binary String</label>
+                        <textarea id="binary" class="binary-box" spellcheck="false">000001001110011000000001001010000001001100011000001011001100</textarea>
+                    </div>
+
+                    <div class="meta" aria-live="polite">
+                        <div class="stat">
+                            <span>Bits</span>
+                            <strong id="bitCount">0</strong>
+                        </div>
+                        <div class="stat">
+                            <span>Rows</span>
+                            <strong id="rowCount">0</strong>
+                        </div>
+                        <div class="stat">
+                            <span>Canvas</span>
+                            <strong id="canvasSize">0 x 0</strong>
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <button class="primary" id="generateBtn" type="button">Generate Group Photo</button>
+                        <button class="secondary" id="copyBitsBtn" type="button">Copy Bits</button>
+                    </div>
+                    <div class="error" id="errorBox"></div>
+                </section>
+
+                <section class="panel">
+                    <h2>Layout</h2>
+                    <div class="grid-2">
+                        <div class="field">
+                            <label for="cols">Columns</label>
+                            <input type="number" id="cols" value="13" min="3" max="30">
+                        </div>
+                        <div class="field">
+                            <label for="seed">Random Seed</label>
+                            <input type="text" id="seed" value="friedman">
+                        </div>
+                        <div class="field">
+                            <label for="width">Figure Width</label>
+                            <input type="number" id="width" value="500" min="80" max="900">
+                        </div>
+                        <div class="field">
+                            <label for="height">Figure Height</label>
+                            <input type="number" id="height" value="760" min="120" max="1200">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="overlap_x">Horizontal Overlap</label>
+                        <div class="range-row">
+                            <input type="range" id="overlap_x" min="0" max="0.9" step="0.01" value="0.75">
+                            <span class="range-value" id="overlap_x_value">0.75</span>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="overlap_y">Vertical Overlap</label>
+                        <div class="range-row">
+                            <input type="range" id="overlap_y" min="0" max="0.9" step="0.01" value="0.8">
+                            <span class="range-value" id="overlap_y_value">0.80</span>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="offset">Odd Row Offset</label>
+                        <div class="range-row">
+                            <input type="range" id="offset" min="0" max="1" step="0.01" value="0">
+                            <span class="range-value" id="offset_value">0.00</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h2>Included Figures</h2>
+                    <div class="asset-strip" aria-label="Included image set">
+                        <img src="images/front_1.png" alt="Front facing figure 1">
+                        <img src="images/front_2.png" alt="Front facing figure 2">
+                        <img src="images/front_3.png" alt="Front facing figure 3">
+                        <img src="images/side_1.png" alt="Side facing figure 1">
+                        <img src="images/side_2.png" alt="Side facing figure 2">
+                        <img src="images/side_3.png" alt="Side facing figure 3">
+                    </div>
+                </section>
+            </div>
+
+            <section class="preview">
+                <div class="preview-bar">
+                    <h2>Generated Portrait</h2>
+                    <button class="secondary" id="downloadBtn" type="button">Download PNG</button>
+                </div>
+                <div class="canvas-wrap">
+                    <canvas id="canvas" width="1" height="1" aria-label="Generated Bacon cipher group photo"></canvas>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script>
+        const assetPaths = {
+            front: ["images/front_1.png", "images/front_2.png", "images/front_3.png"],
+            side: ["images/side_1.png", "images/side_2.png", "images/side_3.png"],
+            background: "images/background.png"
+        };
+
+        const originalBaconDictionary = {
+            a: "00000", b: "00001", c: "00010", d: "00011", e: "00100",
+            f: "00101", g: "00110", h: "00111", i: "01000", j: "01000",
+            k: "01001", l: "01010", m: "01011", n: "01100", o: "01101",
+            p: "01110", q: "01111", r: "10000", s: "10001", t: "10010",
+            u: "10011", v: "10011", w: "10100", x: "10101", y: "10110",
+            z: "10111"
+        };
+
+        const state = {
+            assetsReady: false,
+            images: {
+                front: [],
+                side: [],
+                background: null
+            }
+        };
+
+        const els = {
+            modeMessage: document.getElementById("modeMessage"),
+            modeBinary: document.getElementById("modeBinary"),
+            messageControls: document.getElementById("messageControls"),
+            secretText: document.getElementById("secretText"),
+            alphabet: document.getElementById("alphabet"),
+            binary: document.getElementById("binary"),
+            cols: document.getElementById("cols"),
+            seed: document.getElementById("seed"),
+            width: document.getElementById("width"),
+            height: document.getElementById("height"),
+            overlapX: document.getElementById("overlap_x"),
+            overlapY: document.getElementById("overlap_y"),
+            offset: document.getElementById("offset"),
+            overlapXValue: document.getElementById("overlap_x_value"),
+            overlapYValue: document.getElementById("overlap_y_value"),
+            offsetValue: document.getElementById("offset_value"),
+            bitCount: document.getElementById("bitCount"),
+            rowCount: document.getElementById("rowCount"),
+            canvasSize: document.getElementById("canvasSize"),
+            generateBtn: document.getElementById("generateBtn"),
+            copyBitsBtn: document.getElementById("copyBitsBtn"),
+            downloadBtn: document.getElementById("downloadBtn"),
+            errorBox: document.getElementById("errorBox"),
+            canvas: document.getElementById("canvas")
+        };
+
+        function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = () => reject(new Error(`Could not load ${src}`));
+                img.src = src;
+            });
+        }
+
+        function completeBitsForChar(ch) {
+            const value = ch.charCodeAt(0) - 65;
+            if (value < 0 || value > 25) return "";
+            return value.toString(2).padStart(5, "0");
+        }
+
+        function originalBitsForChar(ch) {
+            return originalBaconDictionary[ch.toLowerCase()] || "";
+        }
+
+        function getMessageBits() {
+            const alphabet = els.alphabet.value;
+            const normalized = els.secretText.value.toUpperCase();
+            let bits = "";
+
+            for (const ch of normalized) {
+                if (/[A-Z]/.test(ch)) {
+                    bits += alphabet === "complete" ? completeBitsForChar(ch) : originalBitsForChar(ch);
+                }
+            }
+
+            return bits;
+        }
+
+        function sanitizeBits(value) {
+            return value.replace(/[^01]/g, "");
+        }
+
+        function currentBits() {
+            if (els.modeMessage.checked) {
+                const bits = getMessageBits();
+                els.binary.value = bits;
+                return bits;
+            }
+            const bits = sanitizeBits(els.binary.value);
+            if (els.binary.value !== bits) {
+                els.binary.value = bits;
+            }
+            return bits;
+        }
+
+        function rowCapacities(bitLength, cols) {
+            const rows = [];
+            let remaining = bitLength;
+            let fullRow = true;
+
+            while (remaining > 0) {
+                const capacity = fullRow ? cols : cols - 1;
+                rows.push(Math.min(remaining, capacity));
+                remaining -= capacity;
+                fullRow = !fullRow;
+            }
+
+            return rows;
+        }
+
+        function hashSeed(seed) {
+            let hash = 2166136261;
+            for (let i = 0; i < seed.length; i += 1) {
+                hash ^= seed.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            return hash >>> 0;
+        }
+
+        function seededRandom(seed) {
+            let value = hashSeed(seed || String(Date.now()));
+            return function next() {
+                value += 0x6D2B79F5;
+                let t = value;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        function showError(message) {
+            els.errorBox.textContent = message;
+            els.errorBox.style.display = message ? "block" : "none";
+        }
+
+        function readLayout() {
+            return {
+                cols: Number.parseInt(els.cols.value, 10),
+                width: Number.parseInt(els.width.value, 10),
+                height: Number.parseInt(els.height.value, 10),
+                overlapX: Number.parseFloat(els.overlapX.value),
+                overlapY: Number.parseFloat(els.overlapY.value),
+                offset: Number.parseFloat(els.offset.value)
+            };
+        }
+
+        function updateRangeLabels() {
+            els.overlapXValue.textContent = Number.parseFloat(els.overlapX.value).toFixed(2);
+            els.overlapYValue.textContent = Number.parseFloat(els.overlapY.value).toFixed(2);
+            els.offsetValue.textContent = Number.parseFloat(els.offset.value).toFixed(2);
+        }
+
+        function updateMode() {
+            const usingMessage = els.modeMessage.checked;
+            els.messageControls.style.display = usingMessage ? "block" : "none";
+            els.binary.readOnly = usingMessage;
+            els.binary.setAttribute("aria-readonly", String(usingMessage));
+            currentBits();
+            updateStats();
+        }
+
+        function updateStats() {
+            updateRangeLabels();
+            const bits = currentBits();
+            const layout = readLayout();
+            const rows = rowCapacities(bits.length, layout.cols);
+            const cellW = Math.max(1, Math.floor(layout.width * (1 - layout.overlapX)));
+            const cellH = Math.max(1, Math.floor(layout.height * (1 - layout.overlapY)));
+            const canvasWidth = (layout.cols + 1) * cellW;
+            const canvasHeight = (rows.length + 1) * cellH;
+
+            els.bitCount.textContent = String(bits.length);
+            els.rowCount.textContent = String(rows.length);
+            els.canvasSize.textContent = bits.length ? `${canvasWidth} x ${canvasHeight}` : "0 x 0";
+        }
+
+        function validate(bits, layout) {
+            if (!state.assetsReady) {
+                return "The included images are still loading.";
+            }
+            if (!bits) {
+                return "Enter a secret message or a binary string before generating.";
+            }
+            if (!/^[01]+$/.test(bits)) {
+                return "Binary input can only contain zeroes and ones.";
+            }
+            if (!Number.isInteger(layout.cols) || layout.cols < 3) {
+                return "Column count must be at least 3.";
+            }
+            if (!Number.isFinite(layout.width) || !Number.isFinite(layout.height) || layout.width < 1 || layout.height < 1) {
+                return "Figure width and height must be positive numbers.";
+            }
+            return "";
+        }
+
+        function generateImage() {
+            const bits = currentBits();
+            const layout = readLayout();
+            const validationError = validate(bits, layout);
+            updateStats();
+
+            if (validationError) {
+                showError(validationError);
+                return;
+            }
+            showError("");
+
+            const rows = rowCapacities(bits.length, layout.cols);
+            const cellW = Math.max(1, Math.floor(layout.width * (1 - layout.overlapX)));
+            const cellH = Math.max(1, Math.floor(layout.height * (1 - layout.overlapY)));
+            const canvasWidth = (layout.cols + 1) * cellW;
+            const canvasHeight = (rows.length + 1) * cellH;
+            const rand = seededRandom(`${els.seed.value}:${bits}:${layout.cols}:${layout.width}:${layout.height}`);
+
+            const ctx = els.canvas.getContext("2d");
+            els.canvas.width = canvasWidth;
+            els.canvas.height = canvasHeight;
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            ctx.drawImage(state.images.background, 0, 0, canvasWidth, canvasHeight);
+
+            let bitIndex = 0;
+            for (let row = 0; row < rows.length; row += 1) {
+                const rowCapacity = rows[row];
+                const totalRowWidth = rowCapacity * cellW;
+                const xOffset = Math.floor((canvasWidth - totalRowWidth) / 2) - Math.floor(layout.width / 3);
+
+                for (let col = 0; col < rowCapacity; col += 1) {
+                    const bit = bits[bitIndex];
+                    bitIndex += 1;
+
+                    let x = xOffset + col * cellW;
+                    if (row % 2 === 1) {
+                        x += Math.floor(cellW * layout.offset);
+                    }
+                    const y = Math.floor(row * cellH) + 20;
+
+                    const variants = bit === "0" ? state.images.front : state.images.side;
+                    const chosen = variants[Math.floor(rand() * variants.length)];
+                    ctx.drawImage(chosen, x, y, layout.width, layout.height);
+                }
+            }
+
+            els.canvasSize.textContent = `${canvasWidth} x ${canvasHeight}`;
+        }
+
+        async function copyBits() {
+            const bits = currentBits();
+            updateStats();
+            if (!bits) {
+                showError("There are no bits to copy yet.");
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(bits);
+                els.copyBitsBtn.textContent = "Copied";
+                window.setTimeout(() => {
+                    els.copyBitsBtn.textContent = "Copy Bits";
+                }, 1200);
+            } catch (error) {
+                els.binary.select();
+                document.execCommand("copy");
+            }
+        }
+
+        function downloadImage() {
+            const link = document.createElement("a");
+            link.download = "bacon_cipher_group_photo.png";
+            link.href = els.canvas.toDataURL("image/png");
+            link.click();
+        }
+
+        function bindEvents() {
+            [
+                els.secretText, els.alphabet, els.binary,
+                els.cols, els.width, els.height, els.overlapX, els.overlapY, els.offset, els.seed
+            ].forEach((el) => {
+                el.addEventListener("input", updateStats);
+                el.addEventListener("change", updateStats);
+            });
+
+            els.modeMessage.addEventListener("change", updateMode);
+            els.modeBinary.addEventListener("change", updateMode);
+            els.generateBtn.addEventListener("click", generateImage);
+            els.copyBitsBtn.addEventListener("click", copyBits);
+            els.downloadBtn.addEventListener("click", downloadImage);
+        }
+
+        async function boot() {
+            bindEvents();
+            updateMode();
+
+            try {
+                const [frontImages, sideImages, background] = await Promise.all([
+                    Promise.all(assetPaths.front.map(loadImage)),
+                    Promise.all(assetPaths.side.map(loadImage)),
+                    loadImage(assetPaths.background)
+                ]);
+                state.images.front = frontImages;
+                state.images.side = sideImages;
+                state.images.background = background;
+                state.assetsReady = true;
+                generateImage();
+            } catch (error) {
+                showError(`${error.message}. Open this page from the project folder or a local web server.`);
+            }
+        }
+
+        boot();
+    </script>
+</body>
+</html>
