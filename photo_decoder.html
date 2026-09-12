@@ -172,7 +172,6 @@
         .dropzone {
             display: grid;
             place-items: center;
-            min-height: 118px;
             border: 1px dashed rgba(100, 40, 25, 0.55);
             background: rgba(244, 234, 217, 0.66);
             color: #3a2d23;
@@ -529,9 +528,9 @@
                         <div class="field">
                             <label for="totalFaces">Total Faces</label>
                             <div class="stepper">
-                                <button class="secondary" id="faceDownBtn" type="button" aria-label="Decrease total faces">-</button>
-                                <input type="number" id="totalFaces" value="0" min="0" max="2000">
-                                <button class="secondary" id="faceUpBtn" type="button" aria-label="Increase total faces">+</button>
+                                <button class="secondary" id="faceDownBtn" type="button" aria-label="Decrease total faces by 5">-</button>
+                                <input type="number" id="totalFaces" value="0" min="0" max="2000" step="5">
+                                <button class="secondary" id="faceUpBtn" type="button" aria-label="Increase total faces by 5">+</button>
                             </div>
                         </div>
                         <div class="field">
@@ -544,6 +543,23 @@
                         </div>
                     </div>
 
+                    <div class="field">
+                        <label for="decoded">Decoded Message</label>
+                        <textarea id="decoded" readonly spellcheck="false"></textarea>
+                    </div>
+                        <div class="grid-2">
+                            <div class="field">
+                                <label for="alphabet">Alphabet</label>
+                                <select id="alphabet">
+                                    <option value="complete">Complete A-Z</option>
+                                    <option value="original" selected>Original I/J and U/V</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="expectedChars">Message Characters</label>
+                                <input type="number" id="expectedChars" value="0" min="0" max="500">
+                            </div>
+                        </div>
                     <div class="field">
                         <label for="matchTop">Match Top Region</label>
                         <div class="range-row">
@@ -573,24 +589,12 @@
                             <span class="range-value" id="offset_value">0.00</span>
                         </div>
                     </div>
-                    <p class="hint">Use the same settings as the image generator. Set total faces for an exact final row; 0 scans full rows and trims obvious empty slots.</p>
+                    <p class="hint">Use the same settings as the image generator. Total faces is always rounded to a group of 5; 0 auto-detects and fills the count after analysis.</p>
                 </section>
 
                 <section class="panel">
                     <h2>Decoded Output</h2>
-                    <div class="grid-2">
-                        <div class="field">
-                            <label for="alphabet">Alphabet</label>
-                            <select id="alphabet">
-                                <option value="complete">Complete A-Z</option>
-                                <option value="original" selected>Original I/J and U/V</option>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label for="expectedChars">Message Characters</label>
-                            <input type="number" id="expectedChars" value="0" min="0" max="500">
-                        </div>
-                    </div>
+
 
                     <div class="meta" aria-live="polite">
                         <div class="stat">
@@ -611,10 +615,7 @@
                         <label for="binary">Binary String</label>
                         <textarea id="binary" class="binary-box" readonly spellcheck="false"></textarea>
                     </div>
-                    <div class="field">
-                        <label for="decoded">Decoded Message</label>
-                        <textarea id="decoded" readonly spellcheck="false"></textarea>
-                    </div>
+
                     <div class="actions">
                         <button class="secondary" id="copyBitsBtn" type="button">Copy Bits</button>
                         <button class="secondary" id="copyMessageBtn" type="button">Copy Message</button>
@@ -783,9 +784,14 @@
         }
 
         function readLayout() {
+            const totalFaces = nearestFaceGroup(els.totalFaces.value);
+            if (els.totalFaces.value !== String(totalFaces)) {
+                els.totalFaces.value = String(totalFaces);
+            }
+
             return {
                 cols: Number.parseInt(els.cols.value, 10),
-                totalFaces: Number.parseInt(els.totalFaces.value, 10),
+                totalFaces,
                 width: Number.parseInt(els.width.value, 10),
                 height: Number.parseInt(els.height.value, 10),
                 matchTop: Number.parseFloat(els.matchTop.value),
@@ -966,6 +972,15 @@
                 }
             }
 
+            if (layout.totalFaces === 0) {
+                const inferredTotal = nearestFaceGroup(trimTrailingEmpty(slots).length);
+                if (inferredTotal > 0) {
+                    setTotalFaces(inferredTotal, false);
+                    analyzeImage();
+                    return;
+                }
+            }
+
             state.slots = layout.totalFaces > 0 ? slots : trimTrailingEmpty(slots);
             renderSlots();
             updateDecodedOutput();
@@ -977,6 +992,20 @@
                 end -= 1;
             }
             return slots.slice(0, end);
+        }
+
+        function nearestFaceGroup(value) {
+            const total = Math.max(0, Number.parseInt(value, 10) || 0);
+            if (total === 0) return 0;
+            return Math.max(5, Math.round(total / 5) * 5);
+        }
+
+        function nextFaceGroup(value, direction) {
+            const total = Math.max(0, Number.parseInt(value, 10) || 0);
+            if (direction > 0) {
+                return total === 0 ? 5 : (Math.floor(total / 5) + 1) * 5;
+            }
+            return Math.max(0, total % 5 === 0 ? total - 5 : Math.floor(total / 5) * 5);
         }
 
         function nextState(current) {
@@ -1079,7 +1108,7 @@
         }
 
         function setTotalFaces(value, shouldAnalyze = true) {
-            const total = Math.max(0, Number.parseInt(value, 10) || 0);
+            const total = nearestFaceGroup(value);
             els.totalFaces.value = String(total);
             if (shouldAnalyze && state.image) {
                 analyzeImage();
@@ -1088,8 +1117,9 @@
 
         function adjustTotalFaces(delta) {
             const current = Number.parseInt(els.totalFaces.value, 10);
-            const fallback = state.slots.length || ((Number.parseInt(els.expectedChars.value, 10) || 0) * 5);
-            setTotalFaces((current > 0 ? current : fallback) + delta);
+            const fallback = nearestFaceGroup(state.slots.length || ((Number.parseInt(els.expectedChars.value, 10) || 0) * 5));
+            const basis = current > 0 ? current : fallback;
+            setTotalFaces(nextFaceGroup(basis, delta));
         }
 
         function syncFaceCountFromCharacters() {
