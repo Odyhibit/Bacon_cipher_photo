@@ -4,14 +4,15 @@ import random
 
 
 def generate_bacon_group_image(binary_string, output_path, cols=13, figure_size=(250, 380),
-                               overlap_x=0.0, overlap_y=0.35, odd_row_offset=0.0):
+                               overlap_x=0.0, overlap_y=0.35, odd_row_offset=0.0,
+                               equal_rows=False):
     bits = list(map(int, binary_string))
-    # Calculate number of rows needed with alternating row lengths
+    # Calculate row lengths, using the selected pattern.
     bits_remaining = len(bits)
     row_capacities = []
     toggle = True  # Start with full-length row
     while bits_remaining > 0:
-        row_capacity = cols if toggle else cols - 1
+        row_capacity = cols if equal_rows or toggle else cols - 1
         row_capacities.append(min(bits_remaining, row_capacity))
         bits_remaining -= row_capacity
         toggle = not toggle
@@ -73,6 +74,7 @@ def main():
     parser.add_argument("--overlap_x", type=float, default=0.75, help="Horizontal overlap (0.0 to 0.9)")
     parser.add_argument("--overlap_y", type=float, default=0.8, help="Vertical overlap (0.0 to 0.9)")
     parser.add_argument("--offset", type=float, default=0.4, help="Horizontal offset for odd rows (0.0 to 1.0)")
+    parser.add_argument("--equal-rows", action="store_true", help="Use the same number of figures in every row")
     args = parser.parse_args()
 
     if args.cols < 3:
@@ -86,7 +88,8 @@ def main():
         figure_size=(args.width, args.height),
         overlap_x=args.overlap_x,
         overlap_y=args.overlap_y,
-        odd_row_offset=args.offset
+        odd_row_offset=args.offset,
+        equal_rows=args.equal_rows
     )
 
 

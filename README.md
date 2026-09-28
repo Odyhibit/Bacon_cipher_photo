@@ -14,6 +14,7 @@ https://odyhibit.github.io/Bacon_cipher_photo/
 
 - `index.html` generates a group image from a secret message or raw binary bits.
 - `photo_decoder.html` decodes generated images by matching each figure position against the included front-facing and side-facing figure templates.
+  It also works on resized copies of an image: the scale is worked out from the image width and the Columns / Figure Width / Horizontal Overlap settings, so those must still match the generator's settings. Decoding is reliable down to roughly 20% of the original size (JPEG compression at small sizes can flip a few bits, which can be corrected by clicking the faces).
 - The `images/` folder contains the bundled figure and background images used by both pages.
 
 In the generated image:

@@ -137,6 +137,20 @@
             margin-top: 0;
         }
 
+        .checkbox-field label {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            cursor: pointer;
+        }
+
+        .checkbox-field input {
+            width: auto;
+            margin: 0;
+            padding: 0;
+            accent-color: var(--accent);
+        }
+
         label {
             color: #3a2d23;
             font-family: "Segoe UI", Arial, sans-serif;
@@ -354,6 +368,8 @@
             display: grid;
             grid-template-rows: auto minmax(0, 1fr);
             overflow: hidden;
+            position: sticky;
+            top: 20px;
         }
 
         .preview-bar {
@@ -470,6 +486,10 @@
             .workspace {
                 grid-template-columns: 1fr;
             }
+
+            .preview {
+                position: static;
+            }
         }
 
         @media (max-width: 620px) {
@@ -496,7 +516,7 @@
             <div>
                 <h1>Bacon Cipher Group Photo Decoder</h1>
                 <p class="lede">Decode images made by the generator by matching each expected figure position against the included front-facing and turned figure templates.</p>
-                <a class="page-link" href="index.html">Open Generator</a>
+                <a class="page-link" href="index.html">Encoder</a>
             </div>
         </header>
 
@@ -507,7 +527,7 @@
                     <label class="dropzone" id="dropzone" for="fileInput">
                         <input type="file" id="fileInput" accept="image/*" hidden>
                         <span>
-                            <strong>Choose or drop a generated PNG</strong>
+                            <strong>Choose or drop an image</strong>
                             <span id="fileName">No image selected</span>
                         </span>
                     </label>
@@ -515,6 +535,7 @@
                         <button class="primary" id="analyzeBtn" type="button">Analyze Image</button>
                         <button class="secondary" id="clearBtn" type="button">Clear</button>
                     </div>
+                    <p class="hint" id="scaleInfo" aria-live="polite"></p>
                     <div class="error" id="errorBox"></div>
                 </section>
 
@@ -563,8 +584,8 @@
                     <div class="field">
                         <label for="matchTop">Match Top Region</label>
                         <div class="range-row">
-                            <input type="range" id="matchTop" min="0.2" max="1" step="0.05" value="0.4">
-                            <span class="range-value" id="matchTop_value">0.40</span>
+                            <input type="range" id="matchTop" min="0.05" max="0.50" step="0.05" value="0.15">
+                            <span class="range-value" id="matchTop_value">0.25</span>
                         </div>
                     </div>
 
@@ -589,7 +610,10 @@
                             <span class="range-value" id="offset_value">0.00</span>
                         </div>
                     </div>
-                    <p class="hint">Use the same settings as the image generator. Total faces is always rounded to a group of 5; 0 auto-detects and fills the count after analysis.</p>
+                    <div class="field checkbox-field">
+                        <label for="equalRows"><input type="checkbox" id="equalRows">Same number of figures in every row</label>
+                    </div>
+                    <p class="hint">Columns are estimated from image width when you load a file; check the count for resized images. Use the same settings as the image generator. Total faces is always rounded to a group of 5; 0 auto-detects and fills the count after analysis.</p>
                 </section>
 
                 <section class="panel">
@@ -690,6 +714,7 @@
             overlapX: document.getElementById("overlap_x"),
             overlapY: document.getElementById("overlap_y"),
             offset: document.getElementById("offset"),
+            equalRows: document.getElementById("equalRows"),
             matchTopValue: document.getElementById("matchTop_value"),
             overlapXValue: document.getElementById("overlap_x_value"),
             overlapYValue: document.getElementById("overlap_y_value"),
@@ -710,6 +735,7 @@
             zoomInBtn: document.getElementById("zoomInBtn"),
             zoomLabel: document.getElementById("zoomLabel"),
             errorBox: document.getElementById("errorBox"),
+            scaleInfo: document.getElementById("scaleInfo"),
             canvas: document.getElementById("canvas"),
             overlay: document.getElementById("overlay"),
             stageShell: document.getElementById("stageShell"),
@@ -797,7 +823,8 @@
                 matchTop: Number.parseFloat(els.matchTop.value),
                 overlapX: Number.parseFloat(els.overlapX.value),
                 overlapY: Number.parseFloat(els.overlapY.value),
-                offset: Number.parseFloat(els.offset.value)
+                offset: Number.parseFloat(els.offset.value),
+                equalRows: els.equalRows.checked
             };
         }
 
@@ -824,8 +851,21 @@
 
         function templateImageData(template, width, height) {
             const ctx = canvasContext(width, height);
+            ctx.imageSmoothingQuality = "high";
             ctx.drawImage(template, 0, 0, width, height);
             return ctx.getImageData(0, 0, width, height);
+        }
+
+        // Same figure, but read starting shiftY pixels lower - i.e. the template's own mid-body
+        // slice instead of its head. Used to recognize bled-through overlap from the row above.
+        function shiftedTemplateImageData(template, width, height, shiftY) {
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, width);
+            canvas.height = Math.max(1, height + shiftY);
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(template, 0, 0, width, height);
+            return ctx.getImageData(0, shiftY, width, height);
         }
 
         function compareTemplate(region, templateData, sampleStep, matchTop) {
@@ -854,7 +894,7 @@
             return total / count;
         }
 
-        function classifySlot(sourceCtx, x, y, width, height, preparedTemplates, matchTop) {
+        function classifySlot(sourceCtx, x, y, width, height, preparedTemplates, matchTop, sampleStep) {
             const visibleX = Math.max(0, x);
             const visibleY = Math.max(0, y);
             const visibleW = Math.min(width, sourceCtx.canvas.width - visibleX, width + Math.min(0, x));
@@ -867,7 +907,6 @@
             const regionCtx = canvasContext(width, height);
             regionCtx.drawImage(sourceCtx.canvas, x, y, width, height, 0, 0, width, height);
             const region = regionCtx.getImageData(0, 0, width, height);
-            const sampleStep = Math.max(6, Math.round(Math.min(width, height) / 90));
 
             const frontScore = Math.min(...preparedTemplates.front.map((template) => compareTemplate(region, template, sampleStep, matchTop)));
             const sideScore = Math.min(...preparedTemplates.side.map((template) => compareTemplate(region, template, sampleStep, matchTop)));
@@ -883,21 +922,21 @@
             return { state: stateValue, confidence, frontScore, sideScore };
         }
 
-        function rowCapacitiesForRows(rowCount, cols) {
+        function rowCapacitiesForRows(rowCount, cols, equalRows) {
             const rows = [];
             for (let row = 0; row < rowCount; row += 1) {
-                rows.push(row % 2 === 0 ? cols : cols - 1);
+                rows.push(equalRows || row % 2 === 0 ? cols : cols - 1);
             }
             return rows;
         }
 
-        function rowCapacitiesForFaces(totalFaces, cols) {
+        function rowCapacitiesForFaces(totalFaces, cols, equalRows) {
             const rows = [];
             let remaining = totalFaces;
             let fullRow = true;
 
             while (remaining > 0) {
-                const capacity = fullRow ? cols : cols - 1;
+                const capacity = equalRows || fullRow ? cols : cols - 1;
                 rows.push(Math.min(remaining, capacity));
                 remaining -= capacity;
                 fullRow = !fullRow;
@@ -906,16 +945,36 @@
             return rows;
         }
 
-        function inferRows(imageHeight, cellH) {
+        function inferRows(nativeImageHeight, cellH) {
             if (!cellH) return 0;
-            return Math.max(1, Math.round(imageHeight / cellH) - 1);
+            return Math.max(1, Math.round(nativeImageHeight / cellH) - 1);
         }
 
-        function rowsForLayout(layout, cellH) {
+        // nativeImageHeight is the image height as the generator would have produced it,
+        // i.e. the uploaded height with any resize undone.
+        function rowsForLayout(layout, cellH, nativeImageHeight) {
             if (layout.totalFaces > 0) {
-                return rowCapacitiesForFaces(layout.totalFaces, layout.cols);
+                return rowCapacitiesForFaces(layout.totalFaces, layout.cols, layout.equalRows);
             }
-            return rowCapacitiesForRows(inferRows(state.image.naturalHeight, cellH), layout.cols);
+            return rowCapacitiesForRows(inferRows(nativeImageHeight, cellH), layout.cols, layout.equalRows);
+        }
+
+        // The generator makes an image (cols + 1) cells wide, so comparing that to the uploaded
+        // width tells us how much the image was resized. All layout math below stays in the
+        // generator's native pixels and is multiplied by this scale only when sampling the image.
+        function imageScale(layout, cellW) {
+            return els.canvas.width / ((layout.cols + 1) * cellW);
+        }
+
+        function describeScale(scale, aspectDrift) {
+            const nativeWidth = Math.round(els.canvas.width / scale);
+            let text = Math.abs(scale - 1) < 0.005
+                ? "Image is at its generated size."
+                : `Image is ${(scale * 100).toFixed(scale < 0.1 ? 1 : 0)}% of its generated size (${els.canvas.width} px wide vs ${nativeWidth} px); positions are being scaled to match.`;
+            if (aspectDrift > 0.03) {
+                text += ` Warning: the height is ${(aspectDrift * 100).toFixed(0)}% off what these settings predict, so check Columns, Total Faces and figure size, or the image may be cropped or stretched.`;
+            }
+            return text;
         }
 
         function analyzeImage() {
@@ -930,10 +989,21 @@
 
             const cellW = Math.max(1, Math.floor(layout.width * (1 - layout.overlapX)));
             const cellH = Math.max(1, Math.floor(layout.height * (1 - layout.overlapY)));
-            const rows = rowsForLayout(layout, cellH);
+            const nativeWidth = (layout.cols + 1) * cellW;
+            const scale = imageScale(layout, cellW);
+            const rows = rowsForLayout(layout, cellH, els.canvas.height / scale);
+            const nativeHeight = (rows.length + 1) * cellH;
+            const aspectDrift = Math.abs((els.canvas.height / nativeHeight) / scale - 1);
+            els.scaleInfo.textContent = describeScale(scale, aspectDrift);
+
+            // Figure size and sampling density in the uploaded image's own pixels.
+            const figureW = Math.max(1, Math.round(layout.width * scale));
+            const figureH = Math.max(1, Math.round(layout.height * scale));
+            const nativeStep = Math.max(6, Math.round(Math.min(layout.width, layout.height) / 90));
+            const sampleStep = Math.max(1, Math.round(nativeStep * scale));
             const preparedTemplates = {
-                front: state.templates.front.map((template) => templateImageData(template, layout.width, layout.height)),
-                side: state.templates.side.map((template) => templateImageData(template, layout.width, layout.height))
+                front: state.templates.front.map((template) => templateImageData(template, figureW, figureH)),
+                side: state.templates.side.map((template) => templateImageData(template, figureW, figureH))
             };
 
             const sourceCtx = els.canvas.getContext("2d", { willReadFrequently: true });
@@ -945,15 +1015,17 @@
             for (let row = 0; row < rows.length; row += 1) {
                 const rowCapacity = rows[row];
                 const totalRowWidth = rowCapacity * cellW;
-                const xOffset = Math.floor((els.canvas.width - totalRowWidth) / 2) - Math.floor(layout.width / 3);
+                const xOffset = Math.floor((nativeWidth - totalRowWidth) / 2) - Math.floor(layout.width / 3);
 
                 for (let col = 0; col < rowCapacity; col += 1) {
-                    let x = xOffset + col * cellW;
+                    let nativeX = xOffset + col * cellW;
                     if (row % 2 === 1) {
-                        x += Math.floor(cellW * layout.offset);
+                        nativeX += Math.floor(cellW * layout.offset);
                     }
-                    const y = Math.floor(row * cellH) + 20;
-                    const result = classifySlot(sourceCtx, x, y, layout.width, layout.height, preparedTemplates, layout.matchTop);
+                    const nativeY = Math.floor(row * cellH) + 20;
+                    const x = Math.round(nativeX * scale);
+                    const y = Math.round(nativeY * scale);
+                    const result = classifySlot(sourceCtx, x, y, figureW, figureH, preparedTemplates, layout.matchTop, sampleStep);
 
                     slots.push({
                         id: index,
@@ -961,8 +1033,8 @@
                         col,
                         x,
                         y,
-                        width: layout.width,
-                        height: layout.height,
+                        width: figureW,
+                        height: figureH,
                         state: result.state,
                         confidence: result.confidence,
                         frontScore: result.frontScore,
@@ -973,7 +1045,26 @@
             }
 
             if (layout.totalFaces === 0) {
-                const inferredTotal = nearestFaceGroup(trimTrailingEmpty(slots).length);
+                // Only the last row can be a partial row (the generator only ever short-fills the
+                // final row), and it's re-centered around its own width, so the uniform full-width
+                // guess above can land every slot in that row on the wrong figure. Work out the
+                // real count for that row on its own, using the generator's own centering math.
+                const lastRowIndex = rows.length - 1;
+                const confirmedCount = rows.slice(0, lastRowIndex).reduce((sum, capacity) => sum + capacity, 0);
+                const fullCapacity = rows[lastRowIndex] || 0;
+                let lastRowCount = 0;
+                if (fullCapacity > 0) {
+                    const shiftedTemplates = {
+                        front: state.templates.front.map((template) => shiftedTemplateImageData(template, figureW, figureH, Math.round(cellH * scale))),
+                        side: state.templates.side.map((template) => shiftedTemplateImageData(template, figureW, figureH, Math.round(cellH * scale)))
+                    };
+                    lastRowCount = detectLastRowCount(sourceCtx, { fullCapacity, rowIndex: lastRowIndex, layout, cellW, cellH, nativeWidth, scale, figureW, figureH, preparedTemplates, shiftedTemplates, sampleStep });
+                }
+
+                const inferredTotal = lastRowCount > 0
+                    ? nearestFaceGroup(confirmedCount + lastRowCount)
+                    : nearestFaceGroup(trimTrailingEmpty(slots).length);
+
                 if (inferredTotal > 0) {
                     setTotalFaces(inferredTotal, false);
                     analyzeImage();
@@ -984,6 +1075,58 @@
             state.slots = layout.totalFaces > 0 ? slots : trimTrailingEmpty(slots);
             renderSlots();
             updateDecodedOutput();
+        }
+
+        // The generator only ever short-fills the LAST row (see bacon_group_composer.py: row
+        // capacities are appended with min(remaining, capacity), so only the final row can be
+        // less than a full row for the selected pattern). It also re-centers that row around its own width
+        // (x_offset depends on that row's capacity), so guessing the wrong count for it doesn't
+        // just add or remove trailing slots - it shifts every position in the row.
+        //
+        // Worse, because rows overlap heavily (a high Vertical Overlap is the point of the
+        // "crowd" look), an unfilled slot in that row isn't blank - it shows the bottom of the
+        // figure from the row above bleeding through, which can match a front/side template's
+        // head crop just as well as a real head does. A plain empty/active check can't tell the
+        // two apart. So for each candidate count, every slot is checked against the templates
+        // twice: once as normal (does it look like a head?) and once against the same templates
+        // read starting one row lower (does it look like that row's own mid-body, i.e. exactly
+        // what bleed-through would look like?). A real figure matches its own head crop better; a
+        // bled-through slot matches the mid-body crop as well or better. The largest candidate
+        // count where every slot passes that check is the real one.
+        function detectLastRowCount(sourceCtx, options) {
+            const { fullCapacity, rowIndex, layout, cellW, cellH, nativeWidth, scale, figureW, figureH, preparedTemplates, shiftedTemplates, sampleStep } = options;
+            const nativeY = Math.floor(rowIndex * cellH) + 20;
+            const y = Math.round(nativeY * scale);
+            const headMargin = 0.02;
+
+            for (let candidate = fullCapacity; candidate >= 1; candidate -= 1) {
+                const totalRowWidth = candidate * cellW;
+                const xOffset = Math.floor((nativeWidth - totalRowWidth) / 2) - Math.floor(layout.width / 3);
+                let allReal = true;
+
+                for (let col = 0; col < candidate && allReal; col += 1) {
+                    let nativeX = xOffset + col * cellW;
+                    if (rowIndex % 2 === 1) {
+                        nativeX += Math.floor(cellW * layout.offset);
+                    }
+                    const x = Math.round(nativeX * scale);
+                    const head = classifySlot(sourceCtx, x, y, figureW, figureH, preparedTemplates, layout.matchTop, sampleStep);
+                    if (head.state === "empty") {
+                        allReal = false;
+                        break;
+                    }
+                    const midBody = classifySlot(sourceCtx, x, y, figureW, figureH, shiftedTemplates, layout.matchTop, sampleStep);
+                    const headScore = Math.min(head.frontScore, head.sideScore);
+                    const midBodyScore = Math.min(midBody.frontScore, midBody.sideScore);
+                    if (midBodyScore - headScore <= headMargin) {
+                        allReal = false;
+                    }
+                }
+
+                if (allReal) return candidate;
+            }
+
+            return 0;
         }
 
         function trimTrailingEmpty(slots) {
@@ -1131,6 +1274,19 @@
             }
         }
 
+        function estimateColumns(imageWidth) {
+            const figureWidth = Number.parseInt(els.width.value, 10);
+            const overlapX = Number.parseFloat(els.overlapX.value);
+            if (!Number.isFinite(imageWidth) || imageWidth <= 0 ||
+                !Number.isFinite(figureWidth) || figureWidth <= 0 ||
+                !Number.isFinite(overlapX) || overlapX < 0 || overlapX >= 1) {
+                return null;
+            }
+
+            const cellW = Math.max(1, Math.floor(figureWidth * (1 - overlapX)));
+            return clamp(Math.round(imageWidth / cellW) - 1, 3, 60);
+        }
+
         function handleFile(file) {
             if (!file || !file.type.startsWith("image/")) {
                 showError("Choose a valid image file.");
@@ -1142,6 +1298,10 @@
                 const img = new Image();
                 img.onload = () => {
                     state.image = img;
+                    const estimatedCols = estimateColumns(img.naturalWidth);
+                    if (estimatedCols !== null) {
+                        els.cols.value = String(estimatedCols);
+                    }
                     els.canvas.width = img.naturalWidth;
                     els.canvas.height = img.naturalHeight;
                     els.overlay.style.width = `${img.naturalWidth}px`;
@@ -1151,6 +1311,7 @@
                     els.imageSize.textContent = `${img.naturalWidth} x ${img.naturalHeight}`;
                     fitStage();
                     state.slots = [];
+                    els.scaleInfo.textContent = "";
                     renderSlots();
                     updateDecodedOutput();
                     showError("");
@@ -1179,6 +1340,7 @@
             els.fileInput.value = "";
             els.fileName.textContent = "No image selected";
             els.imageSize.textContent = "No image loaded";
+            els.scaleInfo.textContent = "";
             els.canvas.width = 1;
             els.canvas.height = 1;
             els.overlay.style.width = "1px";
@@ -1218,6 +1380,12 @@
             els.faceDownBtn.addEventListener("click", () => adjustTotalFaces(-1));
             els.faceUpBtn.addEventListener("click", () => adjustTotalFaces(1));
             els.totalFaces.addEventListener("change", () => setTotalFaces(els.totalFaces.value));
+            els.cols.addEventListener("change", () => {
+                if (state.image) analyzeImage();
+            });
+            els.equalRows.addEventListener("change", () => {
+                if (state.image) analyzeImage();
+            });
             els.copyBitsBtn.addEventListener("click", () => copyText(els.binary.value, els.copyBitsBtn, "Copy Bits"));
             els.copyMessageBtn.addEventListener("click", () => copyText(els.decoded.value, els.copyMessageBtn, "Copy Message"));
             els.alphabet.addEventListener("change", updateDecodedOutput);
