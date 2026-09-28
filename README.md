@@ -24,7 +24,7 @@ In the generated image:
 - 5 bits = 1 Bacon cipher letter
 
 
-```
+
 
 ## Files
 
@@ -35,4 +35,5 @@ In the generated image:
 
 ## Notes
 
-The current image set is small: three front-facing figures and three side-facing figures. The generator avoids immediate same-row repeats where possible, but a wider image set would improve variety.
+The current image set is small: three front-facing figures and three side-facing figures.
+The generator avoids immediate same-row repeats where possible, but a wider image set would improve variety.
