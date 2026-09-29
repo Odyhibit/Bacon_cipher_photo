@@ -774,7 +774,7 @@
             const cellH = Math.max(1, Math.floor(layout.height * (1 - layout.overlapY)));
             const canvasWidth = (layout.cols + 1) * cellW;
             const canvasHeight = (rows.length + 1) * cellH;
-            const rand = seededRandom(`${els.seed.value}:${bits}:${layout.cols}:${layout.width}:${layout.height}`);
+            const rand = seededRandom(els.seed.value);
 
             const ctx = els.canvas.getContext("2d");
             els.canvas.width = canvasWidth;

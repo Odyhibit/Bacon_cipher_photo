@@ -127,6 +127,23 @@
             font-weight: 800;
         }
 
+        .advanced-settings {
+            margin-top: 12px;
+            border: 1px solid var(--line);
+            background: rgba(244, 234, 217, 0.5);
+            padding: 12px;
+        }
+
+        .advanced-settings summary {
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 800;
+        }
+
+        .advanced-settings[open] summary {
+            margin-bottom: 12px;
+        }
+
         .field {
             display: grid;
             gap: 7px;
@@ -135,6 +152,10 @@
 
         .field:first-of-type {
             margin-top: 0;
+        }
+
+        .field[hidden] {
+            display: none;
         }
 
         .checkbox-field label {
@@ -335,34 +356,6 @@
             font-size: 0.9rem;
         }
 
-        .slot-list {
-            display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
-            gap: 6px;
-            max-height: 230px;
-            overflow: auto;
-            margin-top: 10px;
-        }
-
-        .slot-chip {
-            min-height: 34px;
-            border: 1px solid rgba(81, 54, 30, 0.2);
-            background: #f4ead9;
-            color: var(--ink);
-            padding: 4px 6px;
-            font-size: 0.78rem;
-        }
-
-        .slot-chip[data-state="0"] {
-            background: rgba(44, 118, 85, 0.14);
-            border-color: rgba(44, 118, 85, 0.52);
-        }
-
-        .slot-chip[data-state="1"] {
-            background: rgba(143, 63, 45, 0.14);
-            border-color: rgba(143, 63, 45, 0.52);
-        }
-
         .preview {
             min-height: min(78vh, 900px);
             display: grid;
@@ -503,10 +496,6 @@
             .actions {
                 grid-template-columns: 1fr;
             }
-
-            .slot-list {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-            }
         }
     </style>
 </head>
@@ -554,19 +543,15 @@
                                 <button class="secondary" id="faceUpBtn" type="button" aria-label="Increase total faces by 5">+</button>
                             </div>
                         </div>
-                        <div class="field">
-                            <label for="width">Figure Width</label>
-                            <input type="number" id="width" value="500" min="80" max="900">
-                        </div>
-                        <div class="field">
-                            <label for="height">Figure Height</label>
-                            <input type="number" id="height" value="760" min="120" max="1200">
-                        </div>
                     </div>
 
                     <div class="field">
                         <label for="decoded">Decoded Message</label>
                         <textarea id="decoded" readonly spellcheck="false"></textarea>
+                    </div>
+                    <div class="field" id="base24Field" hidden>
+                        <label for="base24Decoded">Base24 Unicode Message</label>
+                        <textarea id="base24Decoded" readonly spellcheck="false"></textarea>
                     </div>
                         <div class="grid-2">
                             <div class="field">
@@ -576,44 +561,56 @@
                                     <option value="original" selected>Original I/J and U/V</option>
                                 </select>
                             </div>
+                        <div class="field">
+                            <label for="expectedChars">Message Characters</label>
+                            <input type="number" id="expectedChars" value="0" min="0" max="500">
+                        </div>
+                    </div>
+                    <details class="advanced-settings">
+                        <summary>Advanced</summary>
+                        <div class="grid-2">
                             <div class="field">
-                                <label for="expectedChars">Message Characters</label>
-                                <input type="number" id="expectedChars" value="0" min="0" max="500">
+                                <label for="width">Figure Width</label>
+                                <input type="number" id="width" value="500" min="80" max="900">
+                            </div>
+                            <div class="field">
+                                <label for="height">Figure Height</label>
+                                <input type="number" id="height" value="760" min="120" max="1200">
                             </div>
                         </div>
-                    <div class="field">
-                        <label for="matchTop">Match Top Region</label>
-                        <div class="range-row">
-                            <input type="range" id="matchTop" min="0.05" max="0.50" step="0.05" value="0.15">
-                            <span class="range-value" id="matchTop_value">0.25</span>
+                        <div class="field">
+                            <label for="matchTop">Match Top Region</label>
+                            <div class="range-row">
+                                <input type="range" id="matchTop" min="0.05" max="0.50" step="0.05" value="0.15">
+                                <span class="range-value" id="matchTop_value">0.25</span>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="field">
-                        <label for="overlap_x">Horizontal Overlap</label>
-                        <div class="range-row">
-                            <input type="range" id="overlap_x" min="0" max="0.9" step="0.01" value="0.75">
-                            <span class="range-value" id="overlap_x_value">0.75</span>
+                        <div class="field">
+                            <label for="overlap_x">Horizontal Overlap</label>
+                            <div class="range-row">
+                                <input type="range" id="overlap_x" min="0" max="0.9" step="0.01" value="0.75">
+                                <span class="range-value" id="overlap_x_value">0.75</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="field">
-                        <label for="overlap_y">Vertical Overlap</label>
-                        <div class="range-row">
-                            <input type="range" id="overlap_y" min="0" max="0.9" step="0.01" value="0.8">
-                            <span class="range-value" id="overlap_y_value">0.80</span>
+                        <div class="field">
+                            <label for="overlap_y">Vertical Overlap</label>
+                            <div class="range-row">
+                                <input type="range" id="overlap_y" min="0" max="0.9" step="0.01" value="0.8">
+                                <span class="range-value" id="overlap_y_value">0.80</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="field">
-                        <label for="offset">Odd Row Offset</label>
-                        <div class="range-row">
-                            <input type="range" id="offset" min="0" max="1" step="0.01" value="0">
-                            <span class="range-value" id="offset_value">0.00</span>
+                        <div class="field">
+                            <label for="offset">Odd Row Offset</label>
+                            <div class="range-row">
+                                <input type="range" id="offset" min="0" max="1" step="0.01" value="0">
+                                <span class="range-value" id="offset_value">0.00</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="field checkbox-field">
-                        <label for="equalRows"><input type="checkbox" id="equalRows">Same number of figures in every row</label>
-                    </div>
-                    <p class="hint">Columns are estimated from image width when you load a file; check the count for resized images. Use the same settings as the image generator. Total faces is always rounded to a group of 5; 0 auto-detects and fills the count after analysis.</p>
+                        <div class="field checkbox-field">
+                            <label for="equalRows"><input type="checkbox" id="equalRows">Same number of figures in every row</label>
+                        </div>
+                        <p class="hint">Columns are estimated from image width when you load a file; check the count for resized images. Use the same settings as the image generator. Total faces is always rounded to a group of 5; 0 auto-detects and fills the count after analysis.</p>
+                    </details>
                 </section>
 
                 <section class="panel">
@@ -644,13 +641,7 @@
                         <button class="secondary" id="copyBitsBtn" type="button">Copy Bits</button>
                         <button class="secondary" id="copyMessageBtn" type="button">Copy Message</button>
                     </div>
-                    <p class="hint">Set message characters to fill total faces automatically at 5 faces per letter. Leave it at 0 to decode every active group.</p>
-                </section>
-
-                <section class="panel">
-                    <h2>Face States</h2>
-                    <p class="hint">Click a circle on the image, or a chip below, to switch that face between 0 and 1.</p>
-                    <div class="slot-list" id="slotList"></div>
+                    <p class="hint">Click a circle on the image to correct a face. Set message characters to fill total faces automatically at 5 faces per letter; leave it at 0 to decode every active group.</p>
                 </section>
             </div>
 
@@ -698,6 +689,8 @@
             return acc;
         }, {});
 
+        const base24Alphabet = "ABCDEFGHIKLMNOPQRSTUWXYZ";
+
         const els = {
             dropzone: document.getElementById("dropzone"),
             fileInput: document.getElementById("fileInput"),
@@ -726,9 +719,10 @@
             confidence: document.getElementById("confidence"),
             binary: document.getElementById("binary"),
             decoded: document.getElementById("decoded"),
+            base24Field: document.getElementById("base24Field"),
+            base24Decoded: document.getElementById("base24Decoded"),
             copyBitsBtn: document.getElementById("copyBitsBtn"),
             copyMessageBtn: document.getElementById("copyMessageBtn"),
-            slotList: document.getElementById("slotList"),
             imageSize: document.getElementById("imageSize"),
             zoomOutBtn: document.getElementById("zoomOutBtn"),
             fitBtn: document.getElementById("fitBtn"),
@@ -814,6 +808,7 @@
             if (els.totalFaces.value !== String(totalFaces)) {
                 els.totalFaces.value = String(totalFaces);
             }
+            els.expectedChars.value = String(totalFaces / 5);
 
             return {
                 cols: Number.parseInt(els.cols.value, 10),
@@ -1175,7 +1170,6 @@
 
         function renderSlots() {
             els.overlay.innerHTML = "";
-            els.slotList.innerHTML = "";
 
             state.slots.forEach((slot, displayIndex) => {
                 const position = markerPosition(slot);
@@ -1189,15 +1183,6 @@
                 marker.title = `Face ${displayIndex + 1}: ${slotLabel(slot.state)}`;
                 marker.addEventListener("click", () => cycleSlot(slot.id));
                 els.overlay.appendChild(marker);
-
-                const chip = document.createElement("button");
-                chip.type = "button";
-                chip.className = "slot-chip";
-                chip.dataset.state = slot.state;
-                chip.textContent = `${displayIndex + 1}: ${slotLabel(slot.state)}`;
-                chip.title = `Confidence ${Math.round(slot.confidence * 100)}%`;
-                chip.addEventListener("click", () => cycleSlot(slot.id));
-                els.slotList.appendChild(chip);
             });
         }
 
@@ -1236,6 +1221,61 @@
             return decoded;
         }
 
+        function encodeBase24ForValidation(message) {
+            const bytes = new TextEncoder().encode(message);
+            if (bytes.length > 24 * 24 - 1) return null;
+
+            let value = 0n;
+            for (const byte of bytes) {
+                value = (value << 8n) | BigInt(byte);
+            }
+
+            let digits = "";
+            if (value === 0n) {
+                digits = base24Alphabet[0];
+            } else {
+                while (value > 0n) {
+                    digits = base24Alphabet[Number(value % 24n)] + digits;
+                    value /= 24n;
+                }
+            }
+
+            return base24Alphabet[Math.floor(bytes.length / 24)] +
+                base24Alphabet[bytes.length % 24] + digits;
+        }
+
+        function decodeBase24(message) {
+            if (!message || message.length < 3 ||
+                [...message].some((char) => !base24Alphabet.includes(char))) return null;
+
+            const byteLength = base24Alphabet.indexOf(message[0]) * 24 +
+                base24Alphabet.indexOf(message[1]);
+            if (byteLength === 0) return null;
+
+            let value = 0n;
+            for (const char of message.slice(2)) {
+                value = value * 24n + BigInt(base24Alphabet.indexOf(char));
+            }
+
+            if (value >= (1n << BigInt(byteLength * 8))) return null;
+
+            const bytes = new Uint8Array(byteLength);
+            for (let i = byteLength - 1; i >= 0; i -= 1) {
+                bytes[i] = Number(value & 0xffn);
+                value >>= 8n;
+            }
+
+            try {
+                const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+                // Plain Bacon messages can also be valid Base24; show this field when
+                // decoding reveals a non-ASCII character such as an emoji.
+                const hasNonAscii = [...text].some((char) => char.codePointAt(0) > 0x7f);
+                return hasNonAscii && encodeBase24ForValidation(text) === message ? text : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
         function updateDecodedOutput() {
             const bits = activeBits();
             const activeSlots = state.slots.filter((slot) => slot.state === "0" || slot.state === "1");
@@ -1244,7 +1284,11 @@
                 : 0;
 
             els.binary.value = bits;
-            els.decoded.value = decodeBits(bits);
+            const decoded = decodeBits(bits);
+            els.decoded.value = decoded;
+            const base24Decoded = decodeBase24(decoded);
+            els.base24Field.hidden = base24Decoded === null;
+            els.base24Decoded.value = base24Decoded || "";
             els.activeCount.textContent = String(activeSlots.length);
             els.groupCount.textContent = `${Math.floor(bits.length / 5)}${bits.length % 5 ? "+" : ""}`;
             els.confidence.textContent = `${Math.round(avgConfidence * 100)}%`;
@@ -1253,6 +1297,7 @@
         function setTotalFaces(value, shouldAnalyze = true) {
             const total = nearestFaceGroup(value);
             els.totalFaces.value = String(total);
+            els.expectedChars.value = String(total / 5);
             if (shouldAnalyze && state.image) {
                 analyzeImage();
             }
