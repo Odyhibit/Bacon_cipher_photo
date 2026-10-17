@@ -228,3 +228,33 @@ button {
     font-weight: 800;
 }
 
+.zoom-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.zoom-controls button {
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 0.82rem;
+}
+
+.zoom-controls span {
+    min-width: 52px;
+    color: var(--muted);
+    font-size: 0.86rem;
+    text-align: right;
+}
+
+.stage-shell {
+    position: relative;
+    margin: 0 auto;
+}
+
+.stage {
+    position: relative;
+    transform-origin: top left;
+}
+

@@ -123,8 +123,6 @@ textarea {
 }
 
 .canvas-wrap {
-    display: grid;
-    place-items: center;
     min-height: 420px;
     overflow: auto;
     padding: 18px;
@@ -133,9 +131,9 @@ textarea {
 
 canvas {
     display: block;
-    max-width: 100%;
+    max-width: none;
     height: auto;
-    border: 1px solid rgba(44, 32, 21, 0.25);
+    outline: 1px solid rgba(44, 32, 21, 0.25);
     background: #dfd0b6;
     box-shadow: 0 14px 32px rgba(42, 31, 19, 0.35);
 }

@@ -6,6 +6,7 @@ const assetPaths = {
 
 const state = {
     assetsReady: false,
+    zoom: 1,
     images: {
         front: [],
         side: [],
@@ -38,6 +39,12 @@ const els = {
     generateBtn: document.getElementById("generateBtn"),
     copyBitsBtn: document.getElementById("copyBitsBtn"),
     downloadBtn: document.getElementById("downloadBtn"),
+    zoomOutBtn: document.getElementById("zoomOutBtn"),
+    fitBtn: document.getElementById("fitBtn"),
+    zoomInBtn: document.getElementById("zoomInBtn"),
+    zoomLabel: document.getElementById("zoomLabel"),
+    stageShell: document.getElementById("stageShell"),
+    stage: document.getElementById("stage"),
     errorBox: document.getElementById("errorBox"),
     canvas: document.getElementById("canvas")
 };
@@ -121,6 +128,35 @@ function seededRandom(seed) {
 function showError(message) {
     els.errorBox.textContent = message;
     els.errorBox.style.display = message ? "block" : "none";
+}
+
+function fitZoom() {
+    if (!state.assetsReady) return 1;
+    const wrap = els.stageShell.parentElement;
+    const availableWidth = Math.max(1, wrap.clientWidth - 36);
+    const availableHeight = Math.max(1, window.innerHeight - 180);
+    return Math.max(0.08, Math.min(availableWidth / els.canvas.width, availableHeight / els.canvas.height, 1));
+}
+
+function setZoom(value) {
+    state.zoom = Math.max(0.08, Math.min(value, 2.5));
+
+    const width = els.canvas.width;
+    const height = els.canvas.height;
+    els.stageShell.style.width = `${Math.max(1, Math.round(width * state.zoom))}px`;
+    els.stageShell.style.height = `${Math.max(1, Math.round(height * state.zoom))}px`;
+    els.stage.style.width = `${width}px`;
+    els.stage.style.height = `${height}px`;
+    els.stage.style.transform = `scale(${state.zoom})`;
+    els.zoomLabel.textContent = `${Math.round(state.zoom * 100)}%`;
+}
+
+function fitStage() {
+    setZoom(fitZoom());
+}
+
+function adjustZoom(multiplier) {
+    setZoom(state.zoom * multiplier);
 }
 
 function readLayout() {
@@ -236,6 +272,7 @@ function generateImage() {
     }
 
     els.canvasSize.textContent = `${canvasWidth} x ${canvasHeight}`;
+    fitStage();
 }
 
 function chooseVariantIndex(variantCount, previousIndex, rand) {
@@ -298,6 +335,12 @@ function bindEvents() {
     els.generateBtn.addEventListener("click", generateImage);
     els.copyBitsBtn.addEventListener("click", copyBits);
     els.downloadBtn.addEventListener("click", downloadImage);
+    els.zoomOutBtn.addEventListener("click", () => adjustZoom(0.85));
+    els.fitBtn.addEventListener("click", fitStage);
+    els.zoomInBtn.addEventListener("click", () => adjustZoom(1.18));
+    window.addEventListener("resize", () => {
+        if (state.assetsReady) fitStage();
+    });
 }
 
 async function boot() {

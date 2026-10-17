@@ -129,10 +129,20 @@
             <section class="preview">
                 <div class="preview-bar">
                     <h2>Generated Portrait</h2>
+                    <div class="zoom-controls" aria-label="Zoom controls">
+                        <button class="secondary" id="zoomOutBtn" type="button" aria-label="Zoom out">-</button>
+                        <button class="secondary" id="fitBtn" type="button">Fit</button>
+                        <button class="secondary" id="zoomInBtn" type="button" aria-label="Zoom in">+</button>
+                        <span id="zoomLabel">100%</span>
+                    </div>
                     <button class="secondary" id="downloadBtn" type="button">Download PNG</button>
                 </div>
                 <div class="canvas-wrap">
-                    <canvas id="canvas" width="1" height="1" aria-label="Generated Bacon cipher group photo"></canvas>
+                    <div class="stage-shell" id="stageShell">
+                        <div class="stage" id="stage">
+                            <canvas id="canvas" width="1" height="1" aria-label="Generated Bacon cipher group photo"></canvas>
+                        </div>
+                    </div>
                 </div>
             </section>
         </section>
